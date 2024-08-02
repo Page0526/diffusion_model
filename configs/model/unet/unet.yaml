@@ -1,0 +1,11 @@
+_target_: src.models.unet.UNet
+
+# im_channels, down_channels, mid_channels, t_emb_dim, down_sample, num_down_layers, num_mid_layers, num_up_layers
+# in_channels: 1 # the channel count of the input
+# down_channels: [32, 64, 128, 256]
+# mid_channels: [256, 256, 128]
+# t_emb_dim: 128
+# down_sample: [True, True, False]
+# num_down_layers: 2
+# num_mid_layers: 2
+# num_up_layers: 2

@@ -1,7 +1,7 @@
 import torch
-import torch.nn as nn
-from torch import Tensor
-from src.models.components.attention.nin import Nin
+from torch import nn
+from src.models.components.blocks.nin import Nin
+
 
 class ResNetBlock(nn.Module):
 

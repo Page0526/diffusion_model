@@ -1,6 +1,6 @@
 import torch
-import torch.nn as nn
-from src.models.components.attention.nin import Nin
+from torch import nn
+from src.models.components.blocks.nin import Nin
 
 # allow model to focus on different parts of input data with varying degrees of importance
 class AttentionBlock(nn.Module):
