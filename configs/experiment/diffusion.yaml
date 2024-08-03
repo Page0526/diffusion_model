@@ -7,7 +7,7 @@ defaults:
   - override /data: mnist
   - override /model: diffusion_module
   - override /callbacks: default
-  - override /trainer: default
+  - override /trainer: gpu
   - override /logger: wandb.yaml
 
 # all parameters below will be merged with parameters from default configurations set above
@@ -19,12 +19,12 @@ seed: 12345
 
 trainer:
   min_epochs: 10
-  max_epochs: 10
+  max_epochs: 40
   gradient_clip_val: 0.5
 
 model:
   optimizer:
-    lr: 0.002
+    lr: 2e-5
   # net:
   #   lin1_size: 128
   #   lin2_size: 256
@@ -32,7 +32,8 @@ model:
   compile: false
 
 data:
-  batch_size: 64
+  batch_size: 32
+  num_workers: 20
 
 logger:
   wandb:

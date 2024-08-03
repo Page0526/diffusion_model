@@ -50,7 +50,7 @@ class DiffusionModel(nn.Module):
             noise = torch.randn_like(x0)
 
         # Take one gradient descent step on
-        alpha_bar_t = self.alpha_bar[sample_steps - 1].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+        alpha_bar_t = self.alpha_bar.to(x0.device)[sample_steps - 1].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
         # calculate predicted noise        
         pred_noise = self.denoise_net(torch.sqrt(alpha_bar_t) * x0 + torch.sqrt(1 - alpha_bar_t) * noise, sample_steps - 1)
 
