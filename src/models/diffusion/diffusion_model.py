@@ -10,12 +10,13 @@ pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
 class DiffusionModel(nn.Module):
 
-    def __init__(self, timesteps: int):
+    def __init__(self, timesteps: int, device: torch.device = torch.device('cuda')):
         super().__init__()
         self.timesteps = timesteps # number of time steps
-        self.denoise_net = UNet() # Unet (neural network)
-        # linear schedule
-        self.beta = torch.linspace(1e-4, 0.02, self.timesteps)
+        self.device = device
+        self.denoise_net = UNet().to(device) # Unet (neural network)
+        # linear schedule   
+        self.beta = torch.linspace(1e-4, 0.02, self.timesteps).to(device)
         # self.beta = self.cosine_variance_schedule()
         self.alpha = 1. - self.beta
         self.alpha_bar = torch.cumprod(self.alpha, dim=0)
@@ -58,28 +59,32 @@ class DiffusionModel(nn.Module):
 
 
     @torch.no_grad()
-    def sampling(self,
-                 n_samples: int | None = 1,
-                 image_channels=1,
-                 img_size=(32, 32),
-                 use_tqdm=True):
+    def sample(self,
+               n_samples: int | None = 1,
+               image_channels=1,
+               img_size=(32, 32),
+               device: torch.device = torch.device('cuda'),
+               use_tqdm=False):
         """
         Algorithm 2 in Denoising Diffusion Probabilistic Models
         """
         # Normalized distribution ~ N(0, I)     
-        x = torch.randn((n_samples, image_channels, img_size[0], img_size[1]))
+        x = torch.randn((n_samples, image_channels, img_size[0], img_size[1]), device=device)
 
         progress_bar = tqdm if use_tqdm else lambda x: x
-        for t in progress_bar(range(self.T, 0, -1)):
+        for t in progress_bar(range(self.timesteps, 0, -1)):
             z = torch.randn_like(x) if t > 1 else torch.zeros_like(x)
-            t = torch.ones(n_samples, dtype=torch.long) * t
+            t = torch.ones(n_samples, dtype=torch.long, device=device) * t
 
+            # self.beta = self.beta.to('cuda')  # Move self.beta to GPU
             beta_t = self.beta[t - 1].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1) 
+            # self.alpha = self.alpha.to('cuda')  # Move self.beta to GPU
             alpha_t = self.alpha[t - 1].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
             alpha_bar_t = self.alpha_bar[t - 1].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
             mean = 1 / torch.sqrt(alpha_t) * (x - ((1 - alpha_t) / torch.sqrt(1 - alpha_bar_t)) * self.denoise_net(x, t - 1))
             sigma = torch.sqrt(beta_t)
             x = mean + sigma * z
+        # print(f"x shape at timestep {t}: {x.shape}") # torch.Size([64, 1, 32, 32])
         return x
      
     # cosine scheduler function, s = small offset prevent beta_t from being too small near t = 0    

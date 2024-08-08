@@ -1,0 +1,2 @@
+export WANDB_API_KEY=2ed3275f23ffc490d01facea99f87ce858abac15
+python src/train.py experiment=diffusion.yaml

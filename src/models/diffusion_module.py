@@ -3,6 +3,8 @@ from torch import Tensor
 import torch
 from lightning import LightningModule
 from torchmetrics import MeanMetric
+from torchvision.utils import make_grid
+from torchmetrics import FrechetInceptionDistance
 
 class DiffusionLitModule(LightningModule):
     """Example of a `LightningModule` for MNIST classification.
@@ -59,7 +61,7 @@ class DiffusionLitModule(LightningModule):
         self.net = net
 
         # loss function
-        self.criterion = torch.nn.CrossEntropyLoss()
+        self.criterion = torch.nn.MSELoss()
 
         # # metric objects for calculating and averaging accuracy across batches
         # self.train_acc = Accuracy(task="multiclass", num_classes=10)
@@ -73,6 +75,7 @@ class DiffusionLitModule(LightningModule):
 
         # for tracking best so far validation accuracy
         # self.val_acc_best = MaxMetric()
+        self.fid = FrechetInceptionDistance()
 
     def forward(self,
                 x: Tensor) -> Tuple[Tensor, Tensor]:
@@ -122,6 +125,13 @@ class DiffusionLitModule(LightningModule):
                  on_step=False,
                  on_epoch=True,
                  prog_bar=True)
+        
+        reals = batch[0]
+        fakes = self.net.sample(n_samples=reals.shape[0], device=self.device)
+
+        reals=make_grid(reals, nrow=8, normalize=True)
+        fakes=make_grid(fakes, nrow=8, normalize=True)
+        self.logger.log(key="train/sample",images=[reals,fakes],caption=["Real","Fake"]) 
         # we can return here dict with any tensors
         # and then read it in some callback or in `training_epoch_end()` below
         # remember to always return loss from `training_step()` or backpropagation will fail!

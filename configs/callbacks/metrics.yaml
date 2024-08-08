@@ -1,0 +1,8 @@
+metrics:
+  _target_: src.utils.callbacks.Metrics
+  fid: null
+  image_variance: null
+  boundary_variance: null
+  mean: 0.5
+  std: 0.5
+  n_ensemble: null

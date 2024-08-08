@@ -1,0 +1,7 @@
+visualize:
+# /mnt/apple/k66/ptrang/diffusion_model/src/utils/visualize.py
+  _target_: src.utils.visualize.Visualize
+  grid_shape: [10, 10]
+  mean: 0.5
+  std: 0.5
+  n_ensemble: null
