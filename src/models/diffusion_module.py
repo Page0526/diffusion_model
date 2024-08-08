@@ -4,7 +4,7 @@ import torch
 from lightning import LightningModule
 from torchmetrics import MeanMetric
 from torchvision.utils import make_grid
-from torchmetrics import FrechetInceptionDistance
+from torchmetrics.image import FrechetInceptionDistance
 
 class DiffusionLitModule(LightningModule):
     """Example of a `LightningModule` for MNIST classification.
@@ -92,8 +92,7 @@ class DiffusionLitModule(LightningModule):
         # by default lightning executes validation step sanity checks before training starts,
         # so it's worth to make sure validation metrics don't store results from these checks
         self.val_loss.reset()
-        # self.val_acc.reset()
-        # self.val_acc_best.reset()
+        self.fid.reset()
 
     def model_step(
             self, batch: Tuple[Tensor,
@@ -131,7 +130,8 @@ class DiffusionLitModule(LightningModule):
 
         reals=make_grid(reals, nrow=8, normalize=True)
         fakes=make_grid(fakes, nrow=8, normalize=True)
-        self.logger.log(key="train/sample",images=[reals,fakes],caption=["Real","Fake"]) 
+        self.log(key="train/sample",images=[reals,fakes],caption=["Real","Fake"]) 
+
         # we can return here dict with any tensors
         # and then read it in some callback or in `training_epoch_end()` below
         # remember to always return loss from `training_step()` or backpropagation will fail!
@@ -159,6 +159,13 @@ class DiffusionLitModule(LightningModule):
                  on_step=False,
                  on_epoch=True,
                  prog_bar=True)
+        
+        reals = batch[0]
+        fakes = self.net.sample(n_samples=reals.shape[0], device=self.device)
+
+        reals=make_grid(reals, nrow=8, normalize=True)
+        fakes=make_grid(fakes, nrow=8, normalize=True)
+        self.log(key="val/sample",images=[reals,fakes],caption=["Real","Fake"]) 
 
     def on_validation_epoch_end(self) -> None:
         "Lightning hook that is called when a validation epoch ends."
@@ -180,6 +187,13 @@ class DiffusionLitModule(LightningModule):
                  on_step=False,
                  on_epoch=True,
                  prog_bar=True)
+        
+        reals = batch[0]
+        fakes = self.net.sample(n_samples=reals.shape[0], device=self.device)
+
+        reals=make_grid(reals, nrow=8, normalize=True)
+        fakes=make_grid(fakes, nrow=8, normalize=True)
+        self.log(key="test/sample",images=[reals,fakes],caption=["Real","Fake"]) 
 
     def on_test_epoch_end(self) -> None:
         """Lightning hook that is called when a test epoch ends."""

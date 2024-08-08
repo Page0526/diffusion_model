@@ -6,7 +6,7 @@
 defaults:
   - override /data: mnist
   - override /model: diffusion_module
-  - override /callbacks: diffusion
+  - override /callbacks: default
   - override /trainer: gpu
   - override /logger: wandb.yaml
   
