@@ -149,6 +149,7 @@ configs/local/default.yaml
 /data/
 /logs/
 .env
+scripts/train.sh
 
 # Aim logging
 .aim
