@@ -1,6 +1,7 @@
 from typing import Any, Dict, Tuple
 from torch import Tensor
 import torch
+import wandb
 from lightning import LightningModule
 from torchmetrics import MeanMetric
 from torchvision.utils import make_grid
@@ -130,7 +131,10 @@ class DiffusionLitModule(LightningModule):
 
         reals=make_grid(reals, nrow=8, normalize=True)
         fakes=make_grid(fakes, nrow=8, normalize=True)
-        self.log(key="train/sample",images=[reals,fakes],caption=["Real","Fake"]) 
+        self.logger.experiment.log({
+            "train/sample": [wandb.Image(reals, caption='reals'), wandb.Image(fakes, caption='fakes')]
+        })
+        # self.log(key="train/sample",images=[reals,fakes],caption=["Real","Fake"]) 
 
         # we can return here dict with any tensors
         # and then read it in some callback or in `training_epoch_end()` below
@@ -160,12 +164,12 @@ class DiffusionLitModule(LightningModule):
                  on_epoch=True,
                  prog_bar=True)
         
-        reals = batch[0]
-        fakes = self.net.sample(n_samples=reals.shape[0], device=self.device)
+        # reals = batch[0]
+        # fakes = self.net.sample(n_samples=reals.shape[0], device=self.device)
 
-        reals=make_grid(reals, nrow=8, normalize=True)
-        fakes=make_grid(fakes, nrow=8, normalize=True)
-        self.log(key="val/sample",images=[reals,fakes],caption=["Real","Fake"]) 
+        # reals=make_grid(reals, nrow=8, normalize=True)
+        # fakes=make_grid(fakes, nrow=8, normalize=True)
+        # self.log(key="val/sample",images=[reals,fakes],caption=["Real","Fake"]) 
 
     def on_validation_epoch_end(self) -> None:
         "Lightning hook that is called when a validation epoch ends."
@@ -188,12 +192,12 @@ class DiffusionLitModule(LightningModule):
                  on_epoch=True,
                  prog_bar=True)
         
-        reals = batch[0]
-        fakes = self.net.sample(n_samples=reals.shape[0], device=self.device)
+        # reals = batch[0]
+        # fakes = self.net.sample(n_samples=reals.shape[0], device=self.device)
 
-        reals=make_grid(reals, nrow=8, normalize=True)
-        fakes=make_grid(fakes, nrow=8, normalize=True)
-        self.log(key="test/sample",images=[reals,fakes],caption=["Real","Fake"]) 
+        # reals=make_grid(reals, nrow=8, normalize=True)
+        # fakes=make_grid(fakes, nrow=8, normalize=True)
+        # self.log(key="test/sample",images=[reals,fakes],caption=["Real","Fake"]) 
 
     def on_test_epoch_end(self) -> None:
         """Lightning hook that is called when a test epoch ends."""
