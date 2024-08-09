@@ -76,7 +76,7 @@ class DiffusionLitModule(LightningModule):
 
         # for tracking best so far validation accuracy
         # self.val_acc_best = MaxMetric()
-        self.fid = FrechetInceptionDistance()
+        self.fid = FrechetInceptionDistance(normalize=True)
 
     def forward(self,
                 x: Tensor) -> Tuple[Tensor, Tensor]:
@@ -116,7 +116,6 @@ class DiffusionLitModule(LightningModule):
     def training_step(self, batch: Tuple[Tensor, Tensor],
                       batch_idx: int) -> Tensor:
         loss, preds, targets = self.model_step(batch)
-
         # update and log metrics
         self.train_loss(loss)
 
@@ -126,16 +125,6 @@ class DiffusionLitModule(LightningModule):
                  on_epoch=True,
                  prog_bar=True)
         
-        reals = batch[0]
-        fakes = self.net.sample(n_samples=reals.shape[0], device=self.device)
-
-        reals=make_grid(reals, nrow=8, normalize=True)
-        fakes=make_grid(fakes, nrow=8, normalize=True)
-        self.logger.experiment.log({
-            "train/sample": [wandb.Image(reals, caption='reals'), wandb.Image(fakes, caption='fakes')]
-        })
-        # self.log(key="train/sample",images=[reals,fakes],caption=["Real","Fake"]) 
-
         # we can return here dict with any tensors
         # and then read it in some callback or in `training_epoch_end()` below
         # remember to always return loss from `training_step()` or backpropagation will fail!
@@ -163,13 +152,6 @@ class DiffusionLitModule(LightningModule):
                  on_step=False,
                  on_epoch=True,
                  prog_bar=True)
-        
-        # reals = batch[0]
-        # fakes = self.net.sample(n_samples=reals.shape[0], device=self.device)
-
-        # reals=make_grid(reals, nrow=8, normalize=True)
-        # fakes=make_grid(fakes, nrow=8, normalize=True)
-        # self.log(key="val/sample",images=[reals,fakes],caption=["Real","Fake"]) 
 
     def on_validation_epoch_end(self) -> None:
         "Lightning hook that is called when a validation epoch ends."
@@ -191,16 +173,33 @@ class DiffusionLitModule(LightningModule):
                  on_step=False,
                  on_epoch=True,
                  prog_bar=True)
-        
-        # reals = batch[0]
-        # fakes = self.net.sample(n_samples=reals.shape[0], device=self.device)
+        # generate images
+        reals = batch[0]
+        fakes = self.net.sample(n_samples=reals.shape[0], device=self.device)
 
-        # reals=make_grid(reals, nrow=8, normalize=True)
-        # fakes=make_grid(fakes, nrow=8, normalize=True)
-        # self.log(key="test/sample",images=[reals,fakes],caption=["Real","Fake"]) 
+        # transform images and calculate fid
+        if preds.shape[1] == 1:
+            # gray to rgb image
+            rgb_fakes = torch.cat([preds, preds, preds], dim=1)
+            rgb_reals = torch.cat([targets, targets, targets], dim=1)
+
+        transform_reals = torch.nn.functional.interpolate(rgb_reals,size=(299,299),mode='bilinear')
+        transform_fakes = torch.nn.functional.interpolate(rgb_fakes,size=(299,299),mode='bilinear')
+        
+        self.fid.update(transform_fakes,real=False)
+        self.fid.update(transform_reals,real=True)
+
+        # log image on wandb
+        reals=make_grid(reals, nrow=8, normalize=True)
+        fakes=make_grid(fakes, nrow=8, normalize=True)
+        self.logger.experiment.log({
+            "test/sample": [wandb.Image(reals, caption='reals'), wandb.Image(fakes, caption='fakes')]
+        })
 
     def on_test_epoch_end(self) -> None:
         """Lightning hook that is called when a test epoch ends."""
+        self.log("test/fid",self.fid.compute(), on_step=False,on_epoch=True,prog_bar=False)
+        self.fid.reset()
         pass
 
     def setup(self, stage: str) -> None:
