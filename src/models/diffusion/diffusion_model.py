@@ -10,11 +10,15 @@ pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
 class DiffusionModel(nn.Module):
 
-    def __init__(self, timesteps: int, device: torch.device = torch.device('cuda')):
+    def __init__(self,
+                 timesteps: int,
+                 denoise_net: UNet,
+                 device: torch.device = torch.device('cuda'),
+                 ):
         super().__init__()
         self.timesteps = timesteps # number of time steps
         self.device = device
-        self.denoise_net = UNet().to(device) # Unet (neural network)
+        self.denoise_net = denoise_net.to(device) # Unet (neural network)
         # linear schedule   
         self.beta = torch.linspace(1e-4, 0.02, self.timesteps).to(device)
         # self.beta = self.cosine_variance_schedule()

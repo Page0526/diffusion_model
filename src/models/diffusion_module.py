@@ -6,6 +6,7 @@ from lightning import LightningModule
 from torchmetrics import MeanMetric
 from torchvision.utils import make_grid
 from torchmetrics.image import FrechetInceptionDistance
+from src.models.diffusion.diffusion_model import DiffusionModel
 
 class DiffusionLitModule(LightningModule):
     """Example of a `LightningModule` for MNIST classification.
@@ -42,7 +43,7 @@ class DiffusionLitModule(LightningModule):
 
     def __init__(
         self,
-        net: torch.nn.Module,
+        net: DiffusionModel,
         optimizer: torch.optim.Optimizer,
         scheduler: torch.optim.lr_scheduler,
         compile: bool,
@@ -56,7 +57,7 @@ class DiffusionLitModule(LightningModule):
         super().__init__()
 
         # this line allows to access init params with 'self.hparams' attribute
-        # also ensures init params will be stored in ckpt
+        # also ensures init params will be stored in ckpt[]
         self.save_hyperparameters(logger=False)
 
         self.net = net

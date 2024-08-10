@@ -3,7 +3,7 @@ _target_: src.models.diffusion.DiffusionModel
 
 denoise_net:
   _target_: src.models.unet.UNet
-  # in_channels: 1 # the channel count of the input
+  in_ch: 3 # the channel count of the input
   # out_channels: 1 # the channel count of the output
   # base_channels: 64 # the base channel count for the model
   # block: Residual # type of blocks for each level
