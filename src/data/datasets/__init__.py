@@ -3,7 +3,7 @@
 # from .brats2020 import BraTS2020Dataset
 # from .brats2021 import BraTS2021Dataset
 # from .celeba import CelebADataset
-# from .cifar10 import Cifar10Dataset
+from .cifar10 import Cifar10Dataset
 # from .cvc_clinic import CVCClinicDataset
 # from .edge_coco import EdgeCOCODataset
 # from .fashion import FashionDataset
@@ -23,7 +23,7 @@ __datasets = {
     # 'brats2020': BraTS2020Dataset,
     # 'brats2021': BraTS2021Dataset,
     # 'celeba': CelebADataset,
-    # 'cifar10': Cifar10Dataset,
+    'cifar10': Cifar10Dataset,
     # 'cvc_clinic': CVCClinicDataset,
     # 'edge_coco': EdgeCOCODataset,
     # 'fashion': FashionDataset,

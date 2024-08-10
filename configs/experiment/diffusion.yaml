@@ -4,7 +4,7 @@
 # python train.py experiment=example
 
 defaults:
-  - override /data: mnist
+  - override /data: cifar10
   - override /model: diffusion_module
   - override /callbacks: default
   - override /trainer: gpu
@@ -13,7 +13,7 @@ defaults:
 # all parameters below will be merged with parameters from default configurations set above
 # this allows you to overwrite only specified parameters
 
-tags: ["mnist", "diffusion"]
+tags: ["cifar10", "diffusion"]
 
 seed: 12345
 
@@ -29,6 +29,8 @@ model:
   #   lin1_size: 128
   #   lin2_size: 256
   #   lin3_size: 64
+  denoise_net:
+    in_ch: 3
   compile: false
 
 data:
@@ -38,11 +40,11 @@ data:
 logger:
   wandb:
     tags: ${tags}
-    group: "mnist"
+    group: "cifar10"
     name: "${now:%Y-%m-%d}_${now:%H-%M-%S}"
     # tags: ${tags}
     # group: ${data.dataset_name}
     # id: null # pass correct id to resume experiment! (if ckpt_path is not null)
   aim:
-    experiment: "mnist"
+    experiment: "cifar10"
 

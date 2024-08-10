@@ -13,9 +13,13 @@ scheduler:
   factor: 0.1
   patience: 10
 
-net:
+net: 
   _target_: src.models.diffusion.diffusion_model.DiffusionModel
+
   timesteps: 1000
+  denoise_net:
+    _target_: src.models.unet.unet.UNet
+    in_ch: 1
 
 # compile model for faster training with pytorch 2.0
-compile: false
+# compile: false
