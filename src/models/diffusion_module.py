@@ -183,7 +183,10 @@ class DiffusionLitModule(LightningModule):
             # gray to rgb image
             rgb_fakes = torch.cat([preds, preds, preds], dim=1)
             rgb_reals = torch.cat([targets, targets, targets], dim=1)
-
+        else:
+            rgb_fakes = fakes
+            rgb_reals = reals
+            
         transform_reals = torch.nn.functional.interpolate(rgb_reals,size=(299,299),mode='bilinear')
         transform_fakes = torch.nn.functional.interpolate(rgb_fakes,size=(299,299),mode='bilinear')
         
