@@ -150,7 +150,7 @@ class AttentionBlock(nn.Module):
     
 class UNet(nn.Module):
     def __init__(self, ch=128, in_ch: int | None = 1):
-        super().__init__()
+        super(UNet, self).__init__()
         self.ch = ch
         self.linear1 = nn.Linear(ch, 4 * ch)
         self.linear2 = nn.Linear(4 * ch, 4 * ch)
