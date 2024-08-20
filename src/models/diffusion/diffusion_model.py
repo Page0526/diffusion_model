@@ -77,7 +77,10 @@ class DiffusionModel(nn.Module):
         """
         # Normalized distribution ~ N(0, I)     
         x = torch.randn((n_samples, self.image_channels, img_size[0], img_size[1]), device=device)
-
+        # if self.eta == 1:
+        #     timesteps = self.timesteps
+        # else:
+        #     timesteps = self.timesteps / 10
         progress_bar = tqdm if use_tqdm else lambda x: x
         for t in progress_bar(range(self.timesteps, 1, -1)):
             z = torch.randn_like(x) if t > 1 else torch.zeros_like(x)
