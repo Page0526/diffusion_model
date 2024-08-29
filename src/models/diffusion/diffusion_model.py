@@ -71,34 +71,27 @@ class DiffusionModel(nn.Module):
     def sample(self,
                n_samples: int | None = 1,
                img_size=(32, 32),
-               device: torch.device = torch.device('cuda'),
-               use_tqdm=False):
+               device: torch.device = torch.device('cuda')):
         """
         Algorithm 2 in Denoising Diffusion Probabilistic Models
         """
         # Normalized distribution ~ N(0, I)     
         x = torch.randn((n_samples, self.image_channels, img_size[0], img_size[1]), device=device)
+        t = torch.full((x.shape[0],), self.timesteps, device=x.device, dtype=torch.long)
 
         alpha_bar_t = self.alpha_bar[t - 1].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
         alpha_bar_prev_t = self.alpha_bar[t - 2].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+        # predict noise using UNet
         eps = self.denoise_net(x, t - 1)
-        progress_bar = tqdm if use_tqdm else lambda x: x
-        for t in progress_bar(range(self.timesteps, 1, -self.infer_steps)):
-            z = torch.randn_like(x) if t > 1 else torch.zeros_like(x)
-            t = torch.ones(n_samples, dtype=torch.long, device=device) * t
-            alpha_bar_t = self.alpha_bar[t - 1].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
-            alpha_bar_prev_t = self.alpha_bar[t - self.infer_steps - 1].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
-            eps = self.denoise_net(x, t - 1)
-            # DDIM
-            if self.eta == 0:
-                x = (torch.sqrt(alpha_bar_prev_t) * (x - torch.sqrt(1 - alpha_bar_t) * eps) / torch.sqrt(alpha_bar_t))
-            # DDPM
-            else:
-                sigma_t = self.eta * torch.sqrt((1 - alpha_bar_prev_t) * (1 - alpha_bar_t) / (1 - alpha_bar_t))
-                noise = torch.randn_like(x) if t > 1 else torch.zeros_like(x)
-                img = (torch.sqrt(alpha_bar_prev_t) * (img - torch.sqrt(1 - alpha_bar_t) * eps) / torch.sqrt(alpha_bar_t)) + sigma_t * noise
-
-        return x
+        sigma_t = self.eta * torch.sqrt((1 - alpha_bar_prev_t) / (1 - alpha_bar_t) * (1 - alpha_bar_t / alpha_bar_prev_t))
+        epsilon_t = torch.randn_like(x)
+        x_t_minus_one = (
+                torch.sqrt(alpha_bar_prev_t / alpha_bar_t) * x +
+                (torch.sqrt(1 - alpha_bar_prev_t - sigma_t ** 2) - torch.sqrt(
+                    (alpha_bar_prev_t * (1 - alpha_bar_t)) / alpha_bar_t)) * eps +
+                sigma_t * epsilon_t
+        )
+        return x_t_minus_one
      
     # cosine scheduler function, s = small offset prevent beta_t from being too small near t = 0    
     def cosine_variance_schedule(self, s=0.008):
