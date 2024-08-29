@@ -163,7 +163,7 @@ class DiffusionLitModule(LightningModule):
             # gray to rgb image
             rgb_fakes = torch.cat([fakes, fakes, fakes], dim=1)
             rgb_reals = torch.cat([reals, reals, reals], dim=1)
-        else:
+        else:   
             rgb_fakes = fakes
             rgb_reals = reals
             
@@ -180,11 +180,11 @@ class DiffusionLitModule(LightningModule):
         # self.logger.experiment.log({
         #     "test/sample": [wandb.Image(reals, caption='reals'), wandb.Image(fakes, caption='fakes')]
         # })
-        self.logger.log_image(key='test/sample',images=[reals, fakes],caption=['real','fake'])
+        self.logger.log_image(key='val/sample',images=[reals, fakes],caption=['real','fake'])
 
     def on_validation_epoch_end(self) -> None:
         "Lightning hook that is called when a validation epoch ends."
-        self.log("test/fid",self.fid.compute(), prog_bar=False)
+        self.log("val/fid",self.fid.compute(), prog_bar=False)
         self.fid.reset()
         pass
 

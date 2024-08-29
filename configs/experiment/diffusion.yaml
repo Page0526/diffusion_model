@@ -18,8 +18,8 @@ tags: ["mnist", "diffusion", "ddim"]
 seed: 12345
 
 trainer:
-  min_epochs: 10
-  max_epochs: 20
+  min_epochs: 20
+  max_epochs: 40
   gradient_clip_val: 0.5
 
 model:
@@ -30,6 +30,7 @@ model:
     eta: 0
     denoise_net:
       in_ch: 1
+    infer_steps: 50
 
 data:
   batch_size: 64
