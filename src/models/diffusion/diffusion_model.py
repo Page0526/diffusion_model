@@ -16,6 +16,7 @@ class DiffusionModel(nn.Module):
                  image_channels: int | None = 1,
                  device: torch.device = torch.device('cuda'),
                  eta: int | None = 1, # eta = 1 : DDPM, eta = 0: DDIM
+                 infer_steps: int | None = 1 # ddpm
                  ):
         super().__init__()
         self.timesteps = timesteps # number of time steps
@@ -28,6 +29,7 @@ class DiffusionModel(nn.Module):
         self.alpha_bar = torch.cumprod(self.alpha, dim=0)
         self.image_channels = image_channels
         self.eta = eta
+        self.infer_steps = infer_steps
 
     def forward(self,
                 x0: Tensor,
@@ -65,7 +67,6 @@ class DiffusionModel(nn.Module):
 
         return pred_noise, noise
 
-
     @torch.no_grad()
     def sample(self,
                n_samples: int | None = 1,
@@ -77,35 +78,26 @@ class DiffusionModel(nn.Module):
         """
         # Normalized distribution ~ N(0, I)     
         x = torch.randn((n_samples, self.image_channels, img_size[0], img_size[1]), device=device)
-        # if self.eta == 1:
-        #     timesteps = self.timesteps
-        # else:
-        #     timesteps = self.timesteps / 10
+
+        alpha_bar_t = self.alpha_bar[t - 1].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+        alpha_bar_prev_t = self.alpha_bar[t - 2].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+        eps = self.denoise_net(x, t - 1)
         progress_bar = tqdm if use_tqdm else lambda x: x
-        for t in progress_bar(range(self.timesteps, 1, -1)):
+        for t in progress_bar(range(self.timesteps, 1, -self.infer_steps)):
             z = torch.randn_like(x) if t > 1 else torch.zeros_like(x)
             t = torch.ones(n_samples, dtype=torch.long, device=device) * t
-
-            beta_t = self.beta[t - 1].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1) 
-            alpha_t = self.alpha[t - 1].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
             alpha_bar_t = self.alpha_bar[t - 1].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
-            alpha_bar_prev_t = self.alpha_bar[t - 2].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+            alpha_bar_prev_t = self.alpha_bar[t - self.infer_steps - 1].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
             eps = self.denoise_net(x, t - 1)
-            # DDPM
-            # mean = 1 / torch.sqrt(alpha_t) * (x - ((1 - alpha_t) / torch.sqrt(1 - alpha_bar_t)) * eps)
-            # sigma = torch.sqrt(beta_t)
-            # x = mean + sigma * z
             # DDIM
-            x0_t = (x - eps * torch.sqrt(1 - alpha_bar_t)) / torch.sqrt(alpha_bar_t)
-            c1 = self.eta * torch.sqrt((1 - alpha_bar_t / alpha_bar_prev_t) * (1 - alpha_bar_prev_t) / (
-                1 - alpha_bar_t))
-            # c2 * eps = direction pointing to x_t
-            c2 = torch.sqrt((1 - alpha_bar_prev_t) - c1 ** 2)
-            # Eq. (12)
-            # Update x_i using the DDIM formula.
-            x = torch.sqrt(alpha_bar_prev_t) * x0_t + c1 * z + c2 * eps
+            if self.eta == 0:
+                x = (torch.sqrt(alpha_bar_prev_t) * (x - torch.sqrt(1 - alpha_bar_t) * eps) / torch.sqrt(alpha_bar_t))
+            # DDPM
+            else:
+                sigma_t = self.eta * torch.sqrt((1 - alpha_bar_prev_t) * (1 - alpha_bar_t) / (1 - alpha_bar_t))
+                noise = torch.randn_like(x) if t > 1 else torch.zeros_like(x)
+                img = (torch.sqrt(alpha_bar_prev_t) * (img - torch.sqrt(1 - alpha_bar_t) * eps) / torch.sqrt(alpha_bar_t)) + sigma_t * noise
 
-        # print(f"x shape at timestep {t}: {x.shape}") # torch.Size([64, 1, 32, 32])
         return x
      
     # cosine scheduler function, s = small offset prevent beta_t from being too small near t = 0    
