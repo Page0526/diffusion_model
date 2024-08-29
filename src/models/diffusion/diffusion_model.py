@@ -85,12 +85,12 @@ class DiffusionModel(nn.Module):
 
         # generate a sample x_{t-1} from x_t
         progress_bar = tqdm if use_tqdm else lambda x_t: x_t
-        for t in progress_bar(reversed(ddim_timesteps)):
-            z = torch.randn_like(x_t) if t > 1 else torch.zeros_like(x_t)
-            t = torch.ones(n_samples, dtype=torch.long, device=device) * t
+        for t_idx in progress_bar(reversed(ddim_timesteps)):
+            z = torch.randn_like(x_t) if t_idx > 1 else torch.zeros_like(x_t)
+            t = torch.ones(n_samples, dtype=torch.long, device=device) * t_idx
 
-            alpha_bar_t = self.alpha_bar[t - tau].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
-            alpha_bar_prev_t = self.alpha_bar[t - 2*tau].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+            alpha_bar_t = self.alpha_bar[t_idx - tau].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
+            alpha_bar_prev_t = self.alpha_bar[t_idx - 2*tau].unsqueeze(-1).unsqueeze(-1).unsqueeze(-1)
             eps = self.denoise_net(x_t, t - tau)
             # DDPM
             # mean = 1 / torch.sqrt(alpha_t) * (x - ((1 - alpha_t) / torch.sqrt(1 - alpha_bar_t)) * eps)
