@@ -3,7 +3,7 @@ from torch.utils.data import Dataset, ConcatDataset
 from torchvision.datasets import MNIST
 import numpy as np
 import os.path as osp
-
+import torch
 
 class MnistDataset(Dataset):
 
@@ -47,15 +47,16 @@ class MnistDataset(Dataset):
         return len(self.dataset)
 
     def __getitem__(self, index):
-        return np.array(self.dataset[index][0]), {
-            'label': self.dataset[index][1]
-        }
-    
+        image, label = self.dataset[index]
+        label_tensor = torch.tensor(label, dtype=torch.long)
+        return np.array(image), {'label': label_tensor}
 
 if __name__ == "__main__":
     dataset = MnistDataset(data_dir='data')
-    print(len(dataset))
     image, cond = dataset[0]
     label = cond['label']
-    print(image.shape, label)
-    image.show()
+    label_type = type(label)
+    # to check if label is already a tensor
+    label_shape = label.shape if isinstance(label, torch.Tensor) else 'Not a Tensor'
+    print(label_shape)
+    

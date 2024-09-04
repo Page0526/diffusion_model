@@ -1,1 +1,1 @@
-from .diffusion_model import DiffusionModel
+from .net.diffusion_model import DiffusionModel
