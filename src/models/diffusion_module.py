@@ -1,14 +1,13 @@
 from typing import Any, Dict, Tuple
 from torch import Tensor
 import torch
-import wandb
 from lightning import LightningModule
 from torchmetrics import MeanMetric
 from torchvision.utils import make_grid
 from torchmetrics.image import FrechetInceptionDistance
-from src.models.diffusion.diffusion_model import DiffusionModel
+from src.models.diffusion.net.diffusion_model import DiffusionModel
 
-class DiffusionLitModule(LightningModule):
+class DiffusionModule(LightningModule):
     """Example of a `LightningModule` for MNIST classification.
 
     A `LightningModule` implements 8 key methods:
@@ -88,14 +87,7 @@ class DiffusionLitModule(LightningModule):
         """
         preds, targets = self.net(x)
         return preds, targets
-
-    def on_train_start(self) -> None:
-        """Lightning hook that is called when training begins."""
-        # by default lightning executes validation step sanity checks before training starts,
-        # so it's worth to make sure validation metrics don't store results from these checks
-        self.val_loss.reset()
-        self.fid.reset()
-
+    
     def model_step(
             self, batch: Tuple[Tensor,
                                Tensor]) -> Tuple[Tensor, Tensor, Tensor]:
@@ -108,11 +100,17 @@ class DiffusionLitModule(LightningModule):
             - A tensor of predictions.
             - A tensor of target labels.
         """
-        # print(f"Batch: {batch} | Batch.shape: {batch.shape}")
         batch, _ = batch
         preds, targets = self.forward(batch)
         loss = self.criterion(preds, targets)
         return loss, preds, targets
+
+    def on_train_start(self) -> None:
+        """Lightning hook that is called when training begins."""
+        # by default lightning executes validation step sanity checks before training starts,
+        # so it's worth to make sure validation metrics don't store results from these checks
+        self.val_loss.reset()
+        self.fid.reset()
 
     def training_step(self, batch: Tuple[Tensor, Tensor],
                       batch_idx: int) -> Tensor:
@@ -156,7 +154,7 @@ class DiffusionLitModule(LightningModule):
         
         # generate images
         reals = batch[0]
-        fakes = self.net.sample(n_samples=reals.shape[0], device=self.device)
+        fakes = self.net.sample(n_samples=reals.shape[0], devices=self.device)
 
         # transform images and calculate fid
         if preds.shape[1] == 1:
@@ -170,16 +168,13 @@ class DiffusionLitModule(LightningModule):
         transform_reals = torch.nn.functional.interpolate(rgb_reals,size=(299,299),mode='bilinear')
         transform_fakes = torch.nn.functional.interpolate(rgb_fakes,size=(299,299),mode='bilinear')
         
-        if batch_idx%4 == 0:
-            self.fid.update(transform_fakes,real=False)
-            self.fid.update(transform_reals,real=True)
+        self.fid.update(transform_fakes,real=False)
+        self.fid.update(transform_reals,real=True)
 
         # log image on wandb
         reals=make_grid(reals, nrow=8, normalize=True)
         fakes=make_grid(fakes, nrow=8, normalize=True)
-        # self.logger.experiment.log({
-        #     "test/sample": [wandb.Image(reals, caption='reals'), wandb.Image(fakes, caption='fakes')]
-        # })
+
         self.logger.log_image(key='val/sample',images=[reals, fakes],caption=['real','fake'])
 
     def on_validation_epoch_end(self) -> None:
@@ -220,16 +215,14 @@ class DiffusionLitModule(LightningModule):
         transform_reals = torch.nn.functional.interpolate(rgb_reals,size=(299,299),mode='bilinear')
         transform_fakes = torch.nn.functional.interpolate(rgb_fakes,size=(299,299),mode='bilinear')
         
-        if batch_idx%4 == 0:
-            self.fid.update(transform_fakes,real=False)
-            self.fid.update(transform_reals,real=True)
+        
+        self.fid.update(transform_fakes,real=False)
+        self.fid.update(transform_reals,real=True)
 
         # log image on wandb
         reals=make_grid(reals, nrow=8, normalize=True)
         fakes=make_grid(fakes, nrow=8, normalize=True)
-        # self.logger.experiment.log({
-        #     "test/sample": [wandb.Image(reals, caption='reals'), wandb.Image(fakes, caption='fakes')]
-        # })
+
         self.logger.log_image(key='test/sample',images=[reals, fakes],caption=['real','fake'])
 
     def on_test_epoch_end(self) -> None:
@@ -275,4 +268,4 @@ class DiffusionLitModule(LightningModule):
 
 
 if __name__ == "__main__":
-    _ = DiffusionLitModule(None, None, None, None)
+    _ = DiffusionModule(None, None, None, None)

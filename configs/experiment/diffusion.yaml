@@ -13,7 +13,7 @@ defaults:
 # all parameters below will be merged with parameters from default configurations set above
 # this allows you to overwrite only specified parameters
 
-tags: ["mnist", "diffusion", "ddim"]
+tags: ["mnist", "ddpm","diffusion"]
 
 seed: 12345
 
@@ -26,14 +26,13 @@ model:
   optimizer:
     lr: 2e-5
   net:
-    image_channels: 1
-    eta: 0
     denoise_net:
       in_ch: 1
-    infer_steps: 100
+    sampler:
+      # n_infer_steps: 100
 
 data:
-  train_val_test_split: [10_000, 2_000, 1_000]
+  # train_val_test_split: [10_000, 2_000, 1_000]
   batch_size: 64
   num_workers: 4
 

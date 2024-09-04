@@ -3,7 +3,6 @@ from torch import nn
 import pyrootutils
 import math
 import numpy as np
-from torch import Tensor
 from tqdm import tqdm
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
@@ -36,7 +35,6 @@ class Downsample(nn.Module):
     def forward(self, x):
         B, C, H, W = x.shape # batch, channels, height, weight
         x = self.conv(x)
-        # print(f"Downsample-x.shape:{x.shape}")
         assert x.shape == (B, C, H // 2, W // 2) # // = divide with integer result
         return x
     
@@ -55,7 +53,6 @@ class Upsample(nn.Module):
         x = nn.functional.interpolate(x, size=None, scale_factor=2, mode='nearest')
 
         x = self.conv(x)
-#         print(f"Upsample-x.shape:{x.shape}")
         assert x.shape == (B, C, H * 2, W * 2)
         return x
     
@@ -109,7 +106,6 @@ class ResNetBlock(nn.Module):
         if not (x.shape[1] == h.shape[1]):
             x = self.nin(x)
         
-#         print(f"ResNetBlock-x.shape:{x.shape} and h.shape:{h.shape}")
         assert x.shape == h.shape
         return x + h
     
@@ -144,7 +140,6 @@ class AttentionBlock(nn.Module):
         h = torch.einsum('bhwHW,bcHW->bchw', w, v)
         h = self.nin(h)
 
-#         print(f"AttentionBlock-x.shape:{x.shape} and h.shape:{h.shape}")
         assert h.shape == x.shape
         return x + h
     
@@ -252,5 +247,4 @@ class UNet(nn.Module):
         x = nn.functional.silu(nn.functional.group_norm(x, num_groups=32))
         x = self.final_conv(x)
         
-#         print(f"UnetBlock-x.shape:{x.shape}")
         return x
