@@ -21,8 +21,6 @@ class ConditionalUNet(UNet):
         # Add label embedding to timestep embedding
         temb = get_timestep_embedding(t, self.ch)
         temb += label_emb  # Combine label and time embeddings
-
-        # temb = torch.nn.functional.silu(self.linear1(temb))
         temb = self.linear2(temb)
         assert temb.shape == (t.shape[0], self.ch * 4)
 

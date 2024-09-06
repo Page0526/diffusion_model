@@ -15,13 +15,13 @@ scheduler:
 
 net: 
   _target_: src.models.diffusion.net.diffusion_model.DiffusionModel
-  n_train_steps: 1000
   denoise_net:
     _target_: src.models.unet.unet.UNet
     in_ch: 1
   sampler:
     _target_: src.models.diffusion.sampler.base.BaseSampler
     n_infer_steps: 1000
+    n_train_steps: 1000
 
 
 # compile model for faster training with pytorch 2.0

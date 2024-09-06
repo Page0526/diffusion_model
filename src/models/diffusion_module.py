@@ -154,10 +154,12 @@ class DiffusionModule(LightningModule):
         
         # generate images
         reals = batch[0]
-        fakes = self.net.sample(n_samples=reals.shape[0], devices=self.device)
+        fakes = self.net.sample(n_samples=reals.shape[0], device=self.device)
 
         # transform images and calculate fid
         if preds.shape[1] == 1:
+            # from IPython import embed
+            # embed()
             # gray to rgb image
             rgb_fakes = torch.cat([fakes, fakes, fakes], dim=1)
             rgb_reals = torch.cat([reals, reals, reals], dim=1)

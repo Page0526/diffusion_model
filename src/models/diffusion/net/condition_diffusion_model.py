@@ -7,7 +7,7 @@ from tqdm import tqdm
 # help set up and find dir of project
 import pyrootutils
 from src.models.unet.unet_condition import ConditionalUNet
-from src.models.diffusion import DiffusionModel
+from src.models.diffusion.net.diffusion_model import DiffusionModel
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
 
@@ -18,15 +18,15 @@ class ConditionDiffusionModel(DiffusionModel):
 
     def __init__(
         self,
-        timesteps: int,
         denoise_net: ConditionalUNet,
         label_embedder: nn.Module = None,
         image_channels: int | None = 1,
+        n_train_steps: int = 1000,
         device: torch.device = torch.device('cuda'),
         eta: int | None = 1, # eta = 1 : DDPM, eta = 0: DDIM
         infer_steps: int | None = 1, # ddpm
     ):
-        super().__init__(timesteps, denoise_net, image_channels, device, eta, infer_steps)
+        super().__init__(n_train_steps, denoise_net, image_channels, device, eta, infer_steps)
         self.label_embedder = label_embedder
 
     def get_label_embedding(self, label: torch.Tensor):

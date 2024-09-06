@@ -1,0 +1,8 @@
+_target_: src.models.diffusion.sampler.base.BaseSampler
+
+n_train_steps: 1000
+n_infer_steps: 1000
+beta_schedule: linear
+beta_start: 1e-4
+beta_end: 2e-2
+set_final_alpha_to_one: True

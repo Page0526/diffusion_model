@@ -5,4 +5,4 @@ denoise_net:
   _target_: src.models.unet.UNet
   in_ch: 3 # the channel count of the input
 
-timesteps: 1000 # the number of diffusion step
+n_train_steps: 1000 # the number of diffusion step

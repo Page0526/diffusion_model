@@ -1,14 +1,13 @@
+from typing import Tuple, List, Dict
 import torch
 from torch import nn
+from src.models.diffusion.sampler.base import BaseSampler, noise_like
+from src.models.unet.unet import UNet
 from torch import Tensor
 import math
 from tqdm import tqdm
 # help set up and find dir of project
 import pyrootutils
-from typing import Tuple, List, Dict
-from src.models.unet.unet import UNet
-from src.models.diffusion.sampler import BaseSampler
-from src.models.diffusion.sampler import noise_like
 
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
@@ -42,7 +41,7 @@ class DiffusionModel(nn.Module):
         if sample_steps is None:
             sample_steps = torch.randint(
                 0,
-                self.timesteps,
+                self.n_train_steps,
                 [x0.shape[0]],
                 device=x0.device, 
             )
@@ -57,7 +56,10 @@ class DiffusionModel(nn.Module):
             assert noise.shape == x0.shape, 'shape not match'
             noise = noise.to(x0.device)
         
-        xt = self.sampler.step(x0, sample_steps, noise)
+        # from IPython import embed
+        # embed()
+        # AttributeError: 'NoneType' object has no attribute 'step' -> resolved: wrong config
+        xt = self.sampler.step(x0=x0, t=sample_steps, noise=noise)
 
         # calculate predicted noise        
         pred_noise = self.denoise_net(xt, sample_steps - 1)
@@ -114,11 +116,29 @@ class DiffusionModel(nn.Module):
 
             model_output = self.denoise_net(xt ,t)
 
+            xt = self.sampler.reverse_step(model_output=model_output, t=t, xt=xt, noise=noise,
+                                           repeat_noise=repeat_noise)
 
-            xt = self.sampler.reverse_step(model_output, t, xt, noise,
-                                           repeat_noise)
-
-        return [xt]
+        return xt
     
 if __name__ == "__main__":
-    _ = DiffusionModel(1000)
+    diffusion_model = DiffusionModel()
+    x = torch.randn(2, 1, 32, 32)
+    t = torch.randint(0, 1000, (2, ))
+
+    print('*' * 20, ' DIFFUSION MODEL ', '*' * 20)
+
+    print('=' * 15, ' forward process ', '=' * 15)
+    print('Input:', x.shape)
+    xt = diffusion_model.sampler.step(x, t)
+    pred, target = diffusion_model(x, t)  # with given t
+    pred, target = diffusion_model(x)  # without given t
+    print('xt:', xt.shape)
+    print('Prediction:', pred.shape)
+    print('Target:', target.shape)
+
+    print('=' * 15, ' reverse process ', '=' * 15)
+    gen_samples = diffusion_model.sample(num_sample=2, prog_bar=True)
+    print("Gen_samples:", len(gen_samples), gen_samples[0].shape)
+
+    main()
