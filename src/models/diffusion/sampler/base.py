@@ -55,6 +55,7 @@ class BaseSampler(nn.Module):
                  beta_end: float=2e-2,
                  set_final_alpha_to_one: bool = True,
                  ):
+        super().__init__()
         self.n_train_steps = n_train_steps
         self.set_timesteps(n_infer_steps)
         self.register_schedule(beta_schedule=beta_schedule, 
@@ -145,7 +146,7 @@ class BaseSampler(nn.Module):
                      model_output: Tensor,
                      t: Tensor,
                      xt: Tensor,
-                     eta: float = 1.0, # DDPM - eta = 1, DDIM - eta = 0
+                     eta: float = 0.0, # DDPM - eta = 1, DDIM - eta = 0
                      noise: Tensor | None = None,
                      repeat_noise: bool = False) -> Tensor:
         '''
@@ -177,15 +178,17 @@ class BaseSampler(nn.Module):
                 noise = noise_like(xt.shape, device=xt.device, repeat=repeat_noise)
             else:
                 noise = torch.randn_like(xt)
-
         else:
             assert noise.shape == xt.shape, 'shape not match'
             noise = noise.to(xt.device)
         
         var = torch.zeros_like(model_output)
         # t = 0 (the last step reverse) -> not add noise
+        # from IPython import embed
+        # embed()
         ids = t > 0
-        var[ids] = expand_dim_like(self.get_variance(t, t_prev)[ids], xt)
+        var_dtype = xt.dtype
+        var[ids] = expand_dim_like(self.get_variance(t, t_prev)[ids].to(var_dtype), xt)
         std = var**0.5
 
         std = std * eta

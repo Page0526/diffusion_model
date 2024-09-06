@@ -13,13 +13,13 @@ defaults:
 # all parameters below will be merged with parameters from default configurations set above
 # this allows you to overwrite only specified parameters
 
-tags: ["mnist", "ddpm","diffusion"]
+tags: ["mnist", "ddim","diffusion"]
 
 seed: 12345
 
 trainer:
-  min_epochs: 5
-  max_epochs: 10
+  min_epochs: 20
+  max_epochs: 40
   gradient_clip_val: 0.5
 
 model:
@@ -29,7 +29,7 @@ model:
     denoise_net:
       in_ch: 1
     sampler:
-      # n_infer_steps: 100
+      n_infer_steps: 50
 
 data:
   # train_val_test_split: [10_000, 2_000, 1_000]
