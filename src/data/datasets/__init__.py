@@ -6,7 +6,7 @@
 from .cifar10 import Cifar10Dataset
 # from .cvc_clinic import CVCClinicDataset
 # from .edge_coco import EdgeCOCODataset
-# from .fashion import FashionDataset
+from .fashion import FashionDataset
 # from .ffhq import FFHQDataset
 # from .gender import GenderDataset
 # from .imagenet import ImageNetDataset
@@ -26,7 +26,7 @@ __datasets = {
     'cifar10': Cifar10Dataset,
     # 'cvc_clinic': CVCClinicDataset,
     # 'edge_coco': EdgeCOCODataset,
-    # 'fashion': FashionDataset,
+    'fashion': FashionDataset,
     # 'ffhq': FFHQDataset,
     # 'gender': GenderDataset,
     # 'imagenet': ImageNetDataset,

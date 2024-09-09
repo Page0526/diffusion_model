@@ -9,18 +9,22 @@ class ConditionalUNet(UNet):
         super(ConditionalUNet, self).__init__(ch=ch, in_ch=in_ch)
         self.label_embedding = nn.Embedding(label_dim, ch)
 
-    def forward(self, x, t, label):
+    def forward(self, x, t, cond):
         """
         :param x: (torch.Tensor) batch of images [B, C, H, W]
         :param t: (torch.Tensor) tensor of time steps (torch.long) [B]
         :param label: (torch.Tensor) tensor of labels (torch.long) [B]
         """
         # Obtain label embeddings
-        label_emb = self.label_embedding(label)
-
+        # bug: indices must be Tensor but got NoneType
+        label_emb = self.label_embedding(cond)
+        
         # Add label embedding to timestep embedding
         temb = get_timestep_embedding(t, self.ch)
+        # from IPython import embed
+        # embed()
         temb += label_emb  # Combine label and time embeddings
+        temb = torch.nn.functional.silu(self.linear1(temb))
         temb = self.linear2(temb)
         assert temb.shape == (t.shape[0], self.ch * 4)
 

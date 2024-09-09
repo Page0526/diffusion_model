@@ -22,13 +22,13 @@ class ConditionDiffusionModule(DiffusionModule):
 
     def forward(self,
                 x: Tensor,
-                label: Tensor | None = None):
+                cond: Tensor | None = None):
         """Perform a forward pass through the model `self.net`.
 
         :param x: A tensor of images.
         :return: Two tensor of noise
         """
-        return self.net(x, label=label)
+        return self.net(x, cond=cond)
 
     def model_step(self, batch: Any):
         """Perform a single model step on a batch of data.
@@ -41,10 +41,11 @@ class ConditionDiffusionModule(DiffusionModule):
 
         batch, cond = batch
         label = cond['label']
-        # print(f"label:{type(label)}")
         if not isinstance(label, Tensor):
             label = torch.tensor(label, dtype=torch.long)
-        preds, targets = self.forward(batch, label=label)
+        # from IPython import embed
+        # embed()
+        preds, targets = self.forward(batch, cond=label)
         loss = self.criterion(preds, targets)
         return loss, preds, targets
     
@@ -69,8 +70,8 @@ class ConditionDiffusionModule(DiffusionModule):
         
         # generate images
         reals = batch[0]
-        condition = batch[1].get('condition')
-        fakes = self.net.sample(n_samples=reals.shape[0], labels=condition, device=self.device)
+        condition = batch[1]['label'].clone().detach().long()
+        fakes = self.net.sample(n_samples=reals.shape[0], cond=condition, device=self.device)
 
         # transform images and calculate fid
         if preds.shape[1] == 1:
@@ -84,9 +85,12 @@ class ConditionDiffusionModule(DiffusionModule):
         transform_reals = torch.nn.functional.interpolate(rgb_reals,size=(299,299),mode='bilinear')
         transform_fakes = torch.nn.functional.interpolate(rgb_fakes,size=(299,299),mode='bilinear')
         
-        if batch_idx%4 == 0:
-            self.fid.update(transform_fakes,real=False)
-            self.fid.update(transform_reals,real=True)
+        
+        normalized_reals = (transform_reals + 1) / 2  # Assuming original images are in range [-1, 1]
+        normalized_fakes = (transform_fakes + 1) / 2  # Assuming original images are in range [-1, 1]
+
+        self.fid.update(normalized_fakes,real=False)
+        self.fid.update(normalized_reals,real=True)
 
         # log image on wandb
         reals=make_grid(reals, nrow=8, normalize=True)
@@ -95,12 +99,6 @@ class ConditionDiffusionModule(DiffusionModule):
         #     "test/sample": [wandb.Image(reals, caption='reals'), wandb.Image(fakes, caption='fakes')]
         # })
         self.logger.log_image(key='val/sample',images=[reals, fakes],caption=['real','fake'])
-
-    def on_validation_epoch_end(self) -> None:
-        "Lightning hook that is called when a validation epoch ends."
-        self.log("val/fid",self.fid.compute(), prog_bar=False)
-        self.fid.reset()
-        pass
 
     def test_step(self, batch: Tuple[Tensor, Tensor], batch_idx: int) -> None:
         """Perform a single test step on a batch of data from the test set.
@@ -121,7 +119,7 @@ class ConditionDiffusionModule(DiffusionModule):
         # generate images
         reals = batch[0]
         condition = batch[1].get('condition')
-        fakes = self.net.sample(n_samples=reals.shape[0], labels=condition, device=self.device)
+        fakes = self.net.sample(n_samples=reals.shape[0], cond=condition, device=self.device)
 
         # transform images and calculate fid
         if preds.shape[1] == 1:
@@ -135,9 +133,12 @@ class ConditionDiffusionModule(DiffusionModule):
         transform_reals = torch.nn.functional.interpolate(rgb_reals,size=(299,299),mode='bilinear')
         transform_fakes = torch.nn.functional.interpolate(rgb_fakes,size=(299,299),mode='bilinear')
         
-        if batch_idx%4 == 0:
-            self.fid.update(transform_fakes,real=False)
-            self.fid.update(transform_reals,real=True)
+        
+        normalized_reals = (transform_reals + 1) / 2  # Assuming original images are in range [-1, 1]
+        normalized_fakes = (transform_fakes + 1) / 2  # Assuming original images are in range [-1, 1]
+
+        self.fid.update(normalized_fakes,real=False)
+        self.fid.update(normalized_reals,real=True)
 
         # log image on wandb
         reals=make_grid(reals, nrow=8, normalize=True)
@@ -145,13 +146,7 @@ class ConditionDiffusionModule(DiffusionModule):
         # self.logger.experiment.log({
         #     "test/sample": [wandb.Image(reals, caption='reals'), wandb.Image(fakes, caption='fakes')]
         # })
-        self.logger.log_image(key='test/sample',images=[reals, fakes],caption=['real','fake'])
-
-    def on_test_epoch_end(self) -> None:
-        """Lightning hook that is called when a test epoch ends."""
-        self.log("test/fid",self.fid.compute(), prog_bar=False)
-        self.fid.reset()
-        pass
+        self.logger.log_image(key='test/sample',images=[reals, fakes],caption=['real','fake']) 
 
 if __name__ == "__main__":
     _ = DiffusionModule(None, None, None, None)

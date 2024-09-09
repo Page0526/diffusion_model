@@ -14,12 +14,15 @@ scheduler:
   patience: 10
 
 net: 
-  _target_: src.models.diffusion.condition_diffusion_model.ConditionDiffusionModel
-  n_train_steps: 1000
+  _target_: src.models.diffusion.net.condition_diffusion_model.ConditionDiffusionModel
   denoise_net:
     _target_: src.models.unet.unet_condition.ConditionalUNet
     in_ch: 1
+  sampler:
+    _target_: src.models.diffusion.sampler.base.BaseSampler
+    n_infer_steps: 1000
+    n_train_steps: 1000
 
-# /mnt/banana/student/ptrang/diffusion_model/src/models/unet/unet_condition.py
+
 # compile model for faster training with pytorch 2.0
 compile: false
