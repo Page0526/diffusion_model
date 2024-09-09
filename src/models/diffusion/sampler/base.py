@@ -53,10 +53,12 @@ class BaseSampler(nn.Module):
                  beta_schedule: str = 'linear',
                  beta_start: float=1e-4,
                  beta_end: float=2e-2,
+                 clip_denoised: bool = True,
                  set_final_alpha_to_one: bool = True,
                  ):
         super().__init__()
         self.n_train_steps = n_train_steps
+        self.clip_denoised = clip_denoised
         self.set_timesteps(n_infer_steps)
         self.register_schedule(beta_schedule=beta_schedule, 
                                beta_start=beta_start, 
@@ -140,6 +142,11 @@ class BaseSampler(nn.Module):
 
         var = (1 - alpha_bar_prev) / (1 - alpha_bar) * beta
 
+        # from IPython import embed
+        # embed
+        # NOTE: what does this do?
+        var = torch.clamp(var, min=1e-20)
+
         return var
 
     def reverse_step(self,
@@ -172,6 +179,12 @@ class BaseSampler(nn.Module):
         alpha_bar_prev = expand_dim_like(alpha_bar_prev, xt)
 
         x0_pred = (xt - sqrt_one_minus_alpha_bar * model_output) / (alpha_bar**0.5)
+
+        # from IPython import embed
+        # embed
+        # NOTE: what does this do?
+        if self.clip_denoised:
+            x0_pred.clamp_(-1.0, 1.0)
 
         if noise is None:
             if repeat_noise: 

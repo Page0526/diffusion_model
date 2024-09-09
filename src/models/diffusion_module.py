@@ -5,6 +5,7 @@ from lightning import LightningModule
 from torchmetrics import MeanMetric
 from torchvision.utils import make_grid
 from torchmetrics.image import FrechetInceptionDistance
+from torchvision import transforms
 from src.models.diffusion.net.diffusion_model import DiffusionModel
 
 class DiffusionModule(LightningModule):
@@ -166,12 +167,18 @@ class DiffusionModule(LightningModule):
         else:   
             rgb_fakes = fakes
             rgb_reals = reals
-            
+        
         transform_reals = torch.nn.functional.interpolate(rgb_reals,size=(299,299),mode='bilinear')
         transform_fakes = torch.nn.functional.interpolate(rgb_fakes,size=(299,299),mode='bilinear')
         
-        self.fid.update(transform_fakes,real=False)
-        self.fid.update(transform_reals,real=True)
+        '''
+        TODO: Need to be normalized to [0,1]
+        '''
+        normalized_reals = (transform_reals + 1) / 2  # Assuming original images are in range [-1, 1]
+        normalized_fakes = (transform_fakes + 1) / 2  # Assuming original images are in range [-1, 1]
+
+        self.fid.update(normalized_fakes,real=False)
+        self.fid.update(normalized_reals,real=True)
 
         # log image on wandb
         reals=make_grid(reals, nrow=8, normalize=True)
@@ -181,9 +188,8 @@ class DiffusionModule(LightningModule):
 
     def on_validation_epoch_end(self) -> None:
         "Lightning hook that is called when a validation epoch ends."
-        self.log("val/fid",self.fid.compute(), prog_bar=False)
+        self.log("val/fid",self.fid.compute())
         self.fid.reset()
-        pass
 
     def test_step(self, batch: Tuple[Tensor, Tensor], batch_idx: int) -> None:
         """Perform a single test step on a batch of data from the test set.
@@ -217,9 +223,11 @@ class DiffusionModule(LightningModule):
         transform_reals = torch.nn.functional.interpolate(rgb_reals,size=(299,299),mode='bilinear')
         transform_fakes = torch.nn.functional.interpolate(rgb_fakes,size=(299,299),mode='bilinear')
         
-        
-        self.fid.update(transform_fakes,real=False)
-        self.fid.update(transform_reals,real=True)
+        normalized_reals = (transform_reals + 1) / 2  # Assuming original images are in range [-1, 1]
+        normalized_fakes = (transform_fakes + 1) / 2  # Assuming original images are in range [-1, 1]
+
+        self.fid.update(normalized_fakes,real=False)
+        self.fid.update(normalized_reals,real=True)
 
         # log image on wandb
         reals=make_grid(reals, nrow=8, normalize=True)
@@ -231,7 +239,6 @@ class DiffusionModule(LightningModule):
         """Lightning hook that is called when a test epoch ends."""
         self.log("test/fid",self.fid.compute(), prog_bar=False)
         self.fid.reset()
-        pass
 
     def setup(self, stage: str) -> None:
         """Lightning hook that is called at the beginning of fit (train + validate), validate,
