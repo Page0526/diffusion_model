@@ -65,8 +65,6 @@ class ConditionDiffusionModel(DiffusionModel):
             assert noise.shape == x0.shape, 'shape not match'
             noise = noise.to(x0.device)
         
-        # from IPython import embed
-        # embed()
         # AttributeError: 'NoneType' object has no attribute 'step' -> resolved: wrong config
         xt = self.sampler.step(x0=x0, t=sample_steps, noise=noise)
 

@@ -3,18 +3,21 @@ from torch import nn
 
 
 # Sampling
-class Downsample(nn.Module):
+class DownSample(nn.Module):
 
-    def __init__(self, C):
+    def __init__(self, channels: int)->None:
         """
-        :param C (int): number of input and output channels
+        :param channels (int): number of input and output channels
         """
-        super(Downsample, self).__init__()
-        self.conv = nn.Conv2d(C, C, 3, stride=2, padding=1) # input_shape, output_shape, kernel_size, stride, padding
+        super(DownSample, self).__init__()
+        self.conv = nn.Conv2d(in_channels=channels,
+                              out_channels=channels,
+                              kernel_size=3,
+                              stride=2,
+                              padding=1)
 
-    def forward(self, x):
-        B, C, H, W = x.shape # batch, channels, height, weight
-        x = self.conv(x)
-#         print(f"Downsample-x.shape:{x.shape}")
-        assert x.shape == (B, C, H // 2, W // 2) # // = divide with integer result
-        return x
+    def forward(self, x: torch.Tensor)->torch.Tensor:
+        """
+        x: is the input feature map with shape `[batch_size, channels, height, width]`
+        """
+        return self.conv(x)

@@ -19,7 +19,7 @@ net:
     _target_: src.models.unet.unet_condition.ConditionalUNet
     in_ch: 1
   sampler:
-    _target_: src.models.diffusion.sampler.base.BaseSampler
+    _target_: src.models.diffusion.sampler.ddim.DDIMSampler
     n_infer_steps: 1000
     n_train_steps: 1000
 

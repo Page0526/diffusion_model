@@ -4,7 +4,7 @@
 # python train.py experiment=example
 
 defaults:
-  - override /data: mnist
+  - override /data: fashion
   - override /model: condition_diffusion_module
   - override /callbacks: default
   - override /trainer: gpu
@@ -13,13 +13,13 @@ defaults:
 # all parameters below will be merged with parameters from default configurations set above
 # this allows you to overwrite only specified parameters
 
-tags: ["mnist", "ddim","condition_diffusion"]
+tags: ["fashion", "ddim","condition_diffusion"]
 
 seed: 12345
 
 trainer:
-  min_epochs: 5
-  max_epochs: 10
+  min_epochs: 10
+  max_epochs: 40
   gradient_clip_val: 0.5
 
 model:
@@ -33,18 +33,18 @@ model:
       n_infer_steps: 50
 
 data:
-  train_val_test_split: [10_000, 2_000, 1_000]
+  # train_val_test_split: [10_000, 2_000, 1_000]
   batch_size: 64
   num_workers: 4
 
 logger:
   wandb:
     tags: ${tags}
-    group: "mnist"
+    group: "condition_diffusion"
     name: "${now:%Y-%m-%d}_${now:%H-%M-%S}"
     # tags: ${tags}
     # group: ${data.dataset_name}
     # id: null # pass correct id to resume experiment! (if ckpt_path is not null)
   aim:
-    experiment: "mnist"
+    experiment: "fashion"
 

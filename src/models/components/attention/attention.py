@@ -1,38 +1,72 @@
 import torch
-from torch import nn
-from src.models.components.blocks.nin import Nin
+import torch.nn as nn
+import torch.nn.functional as F
 
-# allow model to focus on different parts of input data with varying degrees of importance
+# Follow Stable Diffusion: https://nn.labml.ai/diffusion/stable_diffusion/model/autoencoder.html
+
 class AttentionBlock(nn.Module):
+    """
+    ## Attention block
+    """
 
-    def __init__(self, ch):
-        super(AttentionBlock, self).__init__()
+    def __init__(self,
+                 channels: int,
+                 n_heads: int = None,
+                 n_layers: int = None,
+                 d_cond:int = None):
+        """
+        channels: is the number of channels
+        """
+        super().__init__()
 
-        self.Q = Nin(ch, ch)
-        self.K = Nin(ch, ch)
-        self.V = Nin(ch, ch)
+        # normalization
+        self.norm = nn.Sequential(nn.GroupNorm(32, channels),
+                                  nn.SiLU(inplace=True))
 
-        self.ch = ch
+        # Query, key and value mappings
+        # NOTE: third-param is kernel_size
+        self.q = nn.Conv2d(channels, channels, 1)
+        self.k = nn.Conv2d(channels, channels, 1)
+        self.v = nn.Conv2d(channels, channels, 1)
 
-        self.nin = Nin(ch, ch, scale=0.)
+        # Final convolution layer
+        self.proj_out = nn.Conv2d(channels, channels, 1)
 
-    def forward(self, x):
-        B, C, H, W = x.shape
-        assert C == self.ch
+        # Attention scaling factor
+        self.scale = channels**-0.5
 
-        h = nn.functional.group_norm(x, num_groups=32)
-        q = self.Q(h)
-        k = self.K(h)
-        v = self.V(h)
+    def forward(self, x: torch.Tensor, cond=None):
+        """
+        x: is the tensor of shape `[batch_size, channels, height, width]`
+        """
+        # Normalize
+        x_norm = self.norm(x)
 
-        w = torch.einsum('bchw,bcHW->bhwHW', q, k) * (int(C) ** (-0.5))  # [B, H, W, H, W]
-        w = torch.reshape(w, [B, H, W, H * W])
-        w = torch.nn.functional.softmax(w, dim=-1)
-        w = torch.reshape(w, [B, H, W, H, W])
+        # Get query, key and vector embeddings
+        q = self.q(x_norm)
+        k = self.k(x_norm)
+        v = self.v(x_norm)
 
-        h = torch.einsum('bhwHW,bcHW->bchw', w, v)
-        h = self.nin(h)
+        # Reshape to query, key and vector embeddings from
+        # `[batch_size, channels, height, width]` to
+        # `[batch_size, channels, height * width]`
+        b, c, h, w = q.shape
+        q = q.view(b, c, h * w)
+        k = k.view(b, c, h * w)
+        v = v.view(b, c, h * w)
 
-#         print(f"AttentionBlock-x.shape:{x.shape} and h.shape:{h.shape}")
-        assert h.shape == x.shape
-        return x + h
+        # Compute $\underset{seq}{softmax}\Bigg(\frac{Q K^\top}{\sqrt{d_{key}}}\Bigg)$
+        attn = torch.einsum('bci, bcj->bij', q, k).contiguous() * self.scale
+        attn = F.softmax(attn, dim=2)
+
+        # Compute $\underset{seq}{softmax}\Bigg(\frac{Q K^\top}{\sqrt{d_{key}}}\Bigg)V$
+        out = torch.einsum('bij, bcj->bci', attn, v).contiguous()
+
+        # Reshape back to `[batch_size, channels, height, width]`
+        out = out.view(b, c, h, w)
+
+        # Final convolution layer
+        out = self.proj_out(out)
+
+        # Add skip connection
+        return x + out
