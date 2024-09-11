@@ -23,14 +23,14 @@ def noise_like(shape: List[int], device: torch.device, repeat: bool = False):
     return repeat_noise() if repeat else noise()
 
 def beta_scheduler(n_steps: int = 1000,
-                    beta_schedule: str = "linear",
+                    beta_schedule: str | None = "linear",
                     beta_start: float = 1e-4,
                     beta_end: float = 0.02,
                     max_beta: float = 0.999,
                     s: float = 0.008, # for improvedDDPM
                     device: Union[torch.device, str] | None = None,
                     ):
-        
+    
     if beta_schedule == "linear":
         beta = torch.linspace(beta_start, beta_end, n_steps, dtype=torch.float32, device=device)
 
@@ -40,8 +40,13 @@ def beta_scheduler(n_steps: int = 1000,
         beta = []
         for t in range(n_steps):
             beta.append((min(1 - f[t + 1] / f[t], max_beta)))
-    
         return Tensor(beta)
+    
+    elif beta_schedule == 'base':
+        beta = Tensor([
+            beta_start + (t / n_steps) * (beta_end - beta_start)
+            for t in range(n_steps)
+    ])
         
     assert beta.shape == (n_steps, ), f"not enough {n_steps} steps"
     return beta
@@ -50,7 +55,7 @@ class BaseSampler(nn.Module):
     def __init__(self,
                  n_train_steps: int,
                  n_infer_steps: int,
-                 beta_schedule: str = 'linear',
+                 beta_schedule: str = 'cosine',
                  beta_start: float=1e-4,
                  beta_end: float=2e-2,
                  clip_denoised: bool = True,
@@ -196,9 +201,6 @@ class BaseSampler(nn.Module):
             noise = noise.to(xt.device)
         
         var = torch.zeros_like(model_output)
-        # t = 0 (the last step reverse) -> not add noise
-        # from IPython import embed
-        # embed()
         ids = t > 0
         var_dtype = xt.dtype
         var[ids] = expand_dim_like(self.get_variance(t, t_prev)[ids].to(var_dtype), xt)
