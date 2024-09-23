@@ -3,6 +3,7 @@ from torch import nn
 import pyrootutils
 import math
 import numpy as np
+
 from tqdm import tqdm
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
@@ -57,7 +58,7 @@ class Upsample(nn.Module):
         return x
     
 # What does Nin do? 
-# Network in network - allow model to learn a linear combination of features at each spatial location
+# Network in network - allow model to learn a linear transformation of features at each spatial location
 # In this model it is used to adjust number of channels
 class Nin(nn.Module):
 

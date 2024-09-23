@@ -66,8 +66,11 @@ class ResidualBlock(nn.Module):
         x: is the input feature map with shape `[batch_size, channels, height, width]`
         t_emb: is the time step embeddings of shape `[batch_size, d_t_emb]`. defaults to None
         """
-
+        # x.shape = [64, 64, 32, 32]
         # Normalization and convolution in input layers
+        # BUG: weight to be a vector of size equal to the number of channels in input, but got weight of shape [64] and input of shape [64, 128, 8, 8]
+        # from IPython import embed
+        # embed()
         out = self.in_layers(x)
 
         if t_emb is not None:

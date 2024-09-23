@@ -65,12 +65,11 @@ class ConditionDiffusionModel(DiffusionModel):
             assert noise.shape == x0.shape, 'shape not match'
             noise = noise.to(x0.device)
         
-        # AttributeError: 'NoneType' object has no attribute 'step' -> resolved: wrong config
         xt = self.sampler.step(x0=x0, t=sample_steps, noise=noise)
 
         # calculate predicted noise        
         pred_noise = self.denoise_net(xt, sample_steps - 1, cond=cond)
-
+        
         return pred_noise, noise
 
     @torch.no_grad()

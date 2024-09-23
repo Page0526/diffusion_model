@@ -19,6 +19,7 @@ class Encoder(nn.Module):
                  base_channels: int = 64,
                 #  block: str='Residual',
                  n_layer_blocks: int=1,
+                # NOTE: what does drop rate do?
                  drop_rate: float = 0.0,
                  channel_multipliers: List[int] = [1, 2, 4],
                 #  attention: str='Attention'
@@ -35,7 +36,7 @@ class Encoder(nn.Module):
                 channel_multipliers (List[int], optional): the multiplicative factors for number of channels for each level. Defaults to [1, 2, 4].
                 attention (str, optional): type of attentions for each level. Defaults to "Attention".
         """ 
-        super.__init__()
+        super().__init__()
         # Number of levels DownSample
         levels = len(channel_multipliers)
         # Number of channels at each level
@@ -69,6 +70,7 @@ class Encoder(nn.Module):
 
                 channels = channels_list[i]
 
+                # top-level block
                 down=nn.Module()
                 down.block = blocks
 
@@ -81,7 +83,7 @@ class Encoder(nn.Module):
 
                 self.encoder.append(down)
 
-            # mid block with attention
+        # mid block with attention
         self.mid = nn.Sequential(
             Block(in_channels=channels, drop_rate=drop_rate),
             Attention(channels=channels),
@@ -114,7 +116,10 @@ class Encoder(nn.Module):
         # Top-level blocks
         for encoder in self.encoder:
             # Blocks
-            for block in encoder.blocks:
+            for block in encoder.block:
+                # from IPython import embed
+                # embed()
+                # z.shape = [64, 64, 32, 32]
                 z = block(z)
             # Down-sampling
             z = encoder.downSample(z)

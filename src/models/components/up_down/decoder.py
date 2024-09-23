@@ -21,11 +21,12 @@ class Decoder(nn.Module):
                 out_channels: int,
                 z_channels: int = 3,
                 base_channels: int = 64,
-                block: str = "Residual",
+                # block: str = "Residual",
                 n_layer_blocks: int = 1,
                 drop_rate: float = 0.,
                 channel_multipliers: List[int] = [1, 2, 4],
-                attention: str = "Attention") -> None:
+                # attention: str = "Attention"
+                ) -> None:
         """_summary_
 
         Args:
@@ -67,8 +68,7 @@ class Decoder(nn.Module):
         # mid block with attention
         self.mid = nn.Sequential(
             Block(channels, channels),
-            Attention(channels=channels) if attention is not None
-                    else Block(in_channels=channels, drop_rate=drop_rate),
+            Attention(channels=channels),
             Block(channels, channels))
 
         # List of top-level blocks
