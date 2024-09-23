@@ -7,7 +7,7 @@ from torch.nn import functional as F
 
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
-from src.models.vae.net.base import BaseVAE
+from src.models.vae.net import BaseVAE
 from src.models.components.up_down import Encoder, Decoder
 
 
@@ -22,6 +22,7 @@ class GaussianDistribution:
             `[batch_size, z_channels * 2, z_height, z_width]`
         """
         # Split mean and log of variance
+        # NOTE: torch.chunk(input, chunk, dim=0) split tensor -> number of chunks, each chunk is a view of input tensor
         self.mean, self.log_var = torch.chunk(parameters, 2, dim=1)
 
         # Clamp the log of variances
@@ -32,14 +33,12 @@ class GaussianDistribution:
 
     def sample(self) -> Tensor:
         """
-        Computes the VAE loss function.
+        Computes the VAE loss function between Gaussian distribution and latent space distribution
         KL(N(\mu, \sigma), N(0, 1)) = \log \frac{1}{\sigma} + \frac{\sigma^2 + \mu^2}{2} - \frac{1}{2}
         """
 
         kld_loss = torch.mean(
-            -0.5 *
-            torch.sum(1 + self.log_var - self.mean**2 - self.log_var.exp(),
-                      dim=[1, 2, 3]),
+            -0.5 * torch.sum(1 + self.log_var - self.mean**2 - self.log_var.exp(),dim=[1, 2, 3]),
             dim=0)
 
         # Sample from the distribution N(mean, std) = mean + std * N(0, 1)
@@ -69,24 +68,27 @@ class VanillaVAE(BaseVAE):
         super().__init__()
 
         self.latent_dims = latent_dims
+        #NOTE: What is kld_weight's role
         self.kld_weight = kld_weight
         self.encoder = encoder
         self.decoder = decoder
 
     def encode(self, img: Tensor) -> Tuple[Tensor, Tensor]:
         """
-        ### Encode images to z representation
+        Encode images to z representation
 
         img: is the image tensor with shape `[batch_size, img_channels, img_height, img_width]`
         """
         # Get embeddings with shape `[batch_size, z_channels * 2, z_height, z_width]`
+        # from IPython import embed
+        # embed()
         mean_var = self.encoder(img)
         z, kld_loss = GaussianDistribution(mean_var).sample()
         return z, kld_loss
 
     def decode(self, z: Tensor) -> Tuple[Tensor, Dict[str, Tensor]]:
         """
-        ### Decode images from latent s
+        Decode images from latent s
 
         z: is the z representation with shape `[batch_size, z_channels, z_height, z_width]`
         """
@@ -95,6 +97,9 @@ class VanillaVAE(BaseVAE):
         return self.decoder(z)
 
     def forward(self, img: Tensor) -> Tuple[Tensor, Dict[str, Tensor]]:
+        # img.shape = [64, 3, 32, 32]
+        # from IPython import embed
+        # embed()
         z, kld_loss = self.encode(img)
         loss = {"kld_loss": self.kld_weight * kld_loss}
         return self.decode(z), loss
@@ -122,8 +127,6 @@ if __name__ == "__main__":
         cfg["decoder"]["drop_rate"] = 0.
         cfg["decoder"]["attention"] = "Attention"
         cfg["decoder"]["channel_multipliers"] = [1, 2, 3]
-        cfg["decoder"]["n_attention_heads"] = None
-        cfg["decoder"]["n_attention_layers"] = None
         print(cfg)
 
         vanilla_vae: VanillaVAE = hydra.utils.instantiate(cfg)

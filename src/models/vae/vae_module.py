@@ -1,23 +1,23 @@
 from typing import Any, Tuple, Dict
+
 import torch
 from torch import Tensor
 import pyrootutils
 import torch.nn as nn
-from lightning import LightningModule
+import lightning as L
 
 from torchmetrics import MeanMetric
 from torch.optim import Optimizer, lr_scheduler
-from contextlib import contextmanager
 
 from torch.nn import MSELoss
 from segmentation_models_pytorch.losses import SoftBCEWithLogitsLoss, DiceLoss
-[]
+
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
 from src.models.vae.net import BaseVAE
 
 
-class VAEModule(LightningModule):
+class VAEModule(L.LightningModule):
 
     def __init__(
         self,
@@ -70,18 +70,6 @@ class VAEModule(LightningModule):
         """
         return self.net(x)
 
-    @torch.no_grad()
-    def predict(self, x: Tensor) -> Tensor:
-
-        preds = self.net(x)[0]
-
-        if isinstance(self.criterion, (SoftBCEWithLogitsLoss, DiceLoss)):
-            preds = nn.functional.sigmoid(preds)
-        else:
-            preds = self.rescale(preds)
-
-        return preds # range [0, 1]
-
     def on_train_start(self) -> None:
         """Lightning hook that is called when training begins."""
         # by default lightning executes validation step sanity checks before training starts,
@@ -103,7 +91,7 @@ class VAEModule(LightningModule):
         :return: A tuple containing (in order):
             - A tensor of losses.
         """
-        targets, _ = batch
+        targets, _ = batch # img pixel & label
         preds, losses = self.forward(targets)
 
         if isinstance(self.criterion, (SoftBCEWithLogitsLoss, DiceLoss)):
@@ -112,6 +100,7 @@ class VAEModule(LightningModule):
         if losses is None:
             return {"recons_loss": self.criterion(preds, targets)}
 
+        
         losses["recons_loss"] = self.criterion(preds, targets)
         return losses
 
@@ -242,130 +231,3 @@ class VAEModule(LightningModule):
                 },
             }
         return {"optimizer": optimizer}
-
-
-if __name__ == "__main__":
-    import hydra
-    from omegaconf import DictConfig
-
-    root = pyrootutils.find_root(search_from=__file__,
-                                indicator=".project-root")
-    print("root: ", root)
-    config_path = str(root / "configs" / "model" / "vae")
-
-    @hydra.main(version_base=None,
-                config_path=config_path,
-                config_name="autoencoder_module.yaml")
-    def main1(cfg: DictConfig):
-        cfg["net"]["encoder"]["z_channels"] = 3
-        cfg["net"]["decoder"]["z_channels"] = 3
-        cfg["net"]["decoder"]["base_channels"] = 64
-        cfg["net"]["decoder"]["block"] = "Residual"
-        cfg["net"]["decoder"]["n_layer_blocks"] = 1
-        cfg["net"]["decoder"]["drop_rate"] = 0.
-        cfg["net"]["decoder"]["attention"] = "Attention"
-        cfg["net"]["decoder"]["channel_multipliers"] = [1, 2, 3]
-        cfg["net"]["decoder"]["n_attention_heads"] = None
-        cfg["net"]["decoder"]["n_attention_layers"] = None
-        print(cfg)
-
-        vae_module: VAEModule = hydra.utils.instantiate(cfg)
-
-        x = torch.randn(2, 3, 32, 32)
-        output, loss = vae_module(x)
-
-        print('***** VAE_Module *****')
-        print('Input:', x.shape)
-        print('Output:', output.shape)
-        print('Loss:', loss)
-        print(vae_module.model_step([x, None]))
-        print('-' * 100)
-
-    @hydra.main(version_base=None,
-                config_path=config_path,
-                config_name="vanilla_vae_module.yaml")
-    def main2(cfg: DictConfig):
-        cfg["net"]["encoder"]["z_channels"] = 3
-        cfg["net"]["decoder"]["z_channels"] = 3
-        cfg["net"]["decoder"]["base_channels"] = 64
-        cfg["net"]["decoder"]["block"] = "Residual"
-        cfg["net"]["decoder"]["n_layer_blocks"] = 1
-        cfg["net"]["decoder"]["drop_rate"] = 0.
-        cfg["net"]["decoder"]["attention"] = "Attention"
-        cfg["net"]["decoder"]["channel_multipliers"] = [1, 2, 3]
-        cfg["net"]["decoder"]["n_attention_heads"] = None
-        cfg["net"]["decoder"]["n_attention_layers"] = None
-        print(cfg)
-
-        vanilla_vae_module: VAEModule = hydra.utils.instantiate(cfg)
-
-        x = torch.randn(2, 3, 32, 32)
-        output, loss = vanilla_vae_module(x)
-
-        print('***** VAE_Module *****')
-        print('Input:', x.shape)
-        print('Output:', output.shape)
-        print('Loss:', loss)
-        print(vanilla_vae_module.model_step([x, None]))
-        print('-' * 100)
-
-    @hydra.main(version_base=None,
-            config_path=config_path,
-            config_name="vq_vae_module.yaml")
-    def main3(cfg: DictConfig):
-        cfg["net"]["encoder"]["z_channels"] = 3
-        cfg["net"]["decoder"]["z_channels"] = 3
-        cfg["net"]["decoder"]["base_channels"] = 64
-        cfg["net"]["decoder"]["block"] = "Residual"
-        cfg["net"]["decoder"]["n_layer_blocks"] = 1
-        cfg["net"]["decoder"]["drop_rate"] = 0.
-        cfg["net"]["decoder"]["attention"] = "Attention"
-        cfg["net"]["decoder"]["channel_multipliers"] = [1, 2, 3]
-        cfg["net"]["decoder"]["n_attention_heads"] = None
-        cfg["net"]["decoder"]["n_attention_layers"] = None
-        cfg["net"]["vq_layer"]["embedding_dim"] = 3
-        print(cfg)
-
-        vq_vae_module: VAEModule = hydra.utils.instantiate(cfg)
-
-        x = torch.randn(2, 3, 32, 32)
-        output, loss = vq_vae_module(x)
-
-        print('***** VAE_Module *****')
-        print('Input:', x.shape)
-        print('Output:', output.shape)
-        print('Loss:', loss)
-        print(vq_vae_module.model_step([x, None]))
-        print('-' * 100)
-    
-    @hydra.main(version_base=None,
-            config_path=config_path,
-            config_name="beta_vae_module.yaml")
-    def main4(cfg: DictConfig):
-        cfg["net"]["encoder"]["z_channels"] = 3
-        cfg["net"]["decoder"]["z_channels"] = 3
-        cfg["net"]["decoder"]["base_channels"] = 64
-        cfg["net"]["decoder"]["block"] = "Residual"
-        cfg["net"]["decoder"]["n_layer_blocks"] = 1
-        cfg["net"]["decoder"]["drop_rate"] = 0.
-        cfg["net"]["decoder"]["attention"] = "Attention"
-        cfg["net"]["decoder"]["channel_multipliers"] = [1, 2, 3]
-        cfg["net"]["decoder"]["n_attention_heads"] = None
-        cfg["net"]["decoder"]["n_attention_layers"] = None
-        print(cfg)
-
-        beta_module: VAEModule = hydra.utils.instantiate(cfg)
-
-        x = torch.randn(2, 3, 32, 32)
-        output, loss = beta_module(x)
-
-        print('***** VAE_Module *****')
-        print('Input:', x.shape)
-        print('Output:', output.shape)
-        print('Loss:', loss)
-        print(beta_module.model_step([x, None]))
-
-    main1()
-    main2()
-    main3()
-    main4()

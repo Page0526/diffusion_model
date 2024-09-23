@@ -153,38 +153,39 @@ class DiffusionModule(LightningModule):
                  on_epoch=True,
                  prog_bar=True)
         
-        # generate images
-        reals = batch[0]
-        fakes = self.net.sample(n_samples=reals.shape[0], device=self.device)
+        if batch_idx == -1:
+            # generate images
+            reals = batch[0]
+            fakes = self.net.sample(n_samples=reals.shape[0], device=self.device)
 
-        # transform images and calculate fid
-        if preds.shape[1] == 1:
-            # from IPython import embed
-            # embed()
-            # gray to rgb image
-            rgb_fakes = torch.cat([fakes, fakes, fakes], dim=1)
-            rgb_reals = torch.cat([reals, reals, reals], dim=1)
-        else:   
-            rgb_fakes = fakes
-            rgb_reals = reals
-        
-        transform_reals = torch.nn.functional.interpolate(rgb_reals,size=(299,299),mode='bilinear')
-        transform_fakes = torch.nn.functional.interpolate(rgb_fakes,size=(299,299),mode='bilinear')
-        
-        '''
-        TODO: Need to be normalized to [0,1]
-        '''
-        normalized_reals = (transform_reals + 1) / 2  # Assuming original images are in range [-1, 1]
-        normalized_fakes = (transform_fakes + 1) / 2  # Assuming original images are in range [-1, 1]
+            # transform images and calculate fid
+            if preds.shape[1] == 1:
+                # from IPython import embed
+                # embed()
+                # gray to rgb image
+                rgb_fakes = torch.cat([fakes, fakes, fakes], dim=1)
+                rgb_reals = torch.cat([reals, reals, reals], dim=1)
+            else:   
+                rgb_fakes = fakes
+                rgb_reals = reals
+            
+            transform_reals = torch.nn.functional.interpolate(rgb_reals,size=(299,299),mode='bilinear')
+            transform_fakes = torch.nn.functional.interpolate(rgb_fakes,size=(299,299),mode='bilinear')
+            
+            '''
+            TODO: Need to be normalized to [0,1]
+            '''
+            normalized_reals = (transform_reals + 1) / 2  # Assuming original images are in range [-1, 1]
+            normalized_fakes = (transform_fakes + 1) / 2  # Assuming original images are in range [-1, 1]
 
-        self.fid.update(normalized_fakes,real=False)
-        self.fid.update(normalized_reals,real=True)
+            self.fid.update(normalized_fakes,real=False)
+            self.fid.update(normalized_reals,real=True)
 
-        # log image on wandb
-        reals=make_grid(reals, nrow=8, normalize=True)
-        fakes=make_grid(fakes, nrow=8, normalize=True)
+            # log image on wandb
+            reals=make_grid(reals, nrow=8, normalize=True)
+            fakes=make_grid(fakes, nrow=8, normalize=True)
 
-        self.logger.log_image(key='val/sample',images=[reals, fakes],caption=['real','fake'])
+            self.logger.log_image(key='val/sample',images=[reals, fakes],caption=['real','fake'])
 
     def on_validation_epoch_end(self) -> None:
         "Lightning hook that is called when a validation epoch ends."
