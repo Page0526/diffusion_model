@@ -41,6 +41,7 @@ class Encoder(nn.Module):
         levels = len(channel_multipliers)
         # Number of channels at each level
         channels_list = [base_channels * m for m in channel_multipliers]
+
         channels = base_channels
 
         # Block to DownSample
@@ -70,23 +71,22 @@ class Encoder(nn.Module):
 
                 channels = channels_list[i]
 
-                # top-level block
-                down=nn.Module()
-                down.block = blocks
+            # top-level block
+            down=nn.Module()
+            down.block = blocks
 
-                # down sampling at the end of each top level except last one
-                if i != levels - 1:
-                    down.downSample = DownSample(channels=channels)
+            # down sampling at the end of each top level except last one
+            if i != levels - 1:
+                down.downSample = DownSample(channels=channels)
+            else:
+                down.downSample = nn.Identity()
 
-                else:
-                    down.downSample = nn.Identity()
-
-                self.encoder.append(down)
+            self.encoder.append(down)
 
         # mid block with attention
         self.mid = nn.Sequential(
             Block(in_channels=channels, drop_rate=drop_rate),
-            Attention(channels=channels),
+            Block(in_channels=channels, drop_rate=drop_rate),
             Block(in_channels=channels, drop_rate=drop_rate))
 
         # output encoder
@@ -94,7 +94,7 @@ class Encoder(nn.Module):
             nn.GroupNorm(num_groups=32, num_channels=channels),
             nn.SiLU(inplace=True),
             nn.Conv2d(in_channels=channels,
-                      out_channels=z_channels,
+                      out_channels=2* z_channels,
                       kernel_size=3,
                       stride=1,
                       padding=1))
