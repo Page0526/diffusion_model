@@ -68,7 +68,7 @@ class Decoder(nn.Module):
         # mid block with attention
         self.mid = nn.Sequential(
             Block(channels, channels),
-            Attention(channels=channels),
+            Block(in_channels=channels, drop_rate=drop_rate),
             Block(channels, channels))
 
         # List of top-level blocks
@@ -112,7 +112,8 @@ class Decoder(nn.Module):
         """
         :param z: is the embedding tensor with shape `[batch_size, z_channels, z_height, z_height]`
         """
-
+        # from IPython import embed
+        # embed()
         # Map z space to image space
         x = self.decoder_input(z)
         

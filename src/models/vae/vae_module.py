@@ -119,6 +119,7 @@ class VAEModule(L.LightningModule):
         loss = sum(losses.values())
         self.train_loss(loss)
 
+
         self.log("train/loss",
                 self.train_loss,
                 on_step=False,
@@ -131,6 +132,10 @@ class VAEModule(L.LightningModule):
                     on_step=False,
                     on_epoch=True,
                     sync_dist=True)
+            
+        # log images
+        if batch_idx == -1:
+            
             
         # return loss or backpropagation will fail
         return loss
