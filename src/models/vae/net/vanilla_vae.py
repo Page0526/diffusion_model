@@ -102,7 +102,7 @@ class VanillaVAE(BaseVAE):
         # from IPython import embed
         # embed()
         loss = {"kld_loss": self.kld_weight * kld_loss}
-        return self.decode(z), loss
+        return self.decode(z), loss # reconstruction, loss
 
 
 if __name__ == "__main__":

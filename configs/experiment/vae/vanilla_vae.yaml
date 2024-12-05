@@ -4,7 +4,7 @@
 # python train.py experiment=reconstruction/vanilla_vae/train/cifar10
 
 defaults:
-  - override /data: cifar10
+  - override /data: fashion
   - override /model: vae/vanilla_vae_module
   - override /callbacks: default
   - override /trainer: gpu
@@ -19,7 +19,7 @@ tags: ["vanilla_vae"]
 
 
 trainer:
-  max_epochs: 20
+  max_epochs: 100
   devices: 1
   check_val_every_n_epoch: 5
   gradient_clip_val: 1.0
@@ -30,17 +30,19 @@ data:
 
 model:
   net:
+  
     encoder: 
+      in_channels: 1
       base_channels: 64
-      channel_multipliers: [1, 2]
+      channel_multipliers: [1, 2, 4]
       n_layer_blocks: 2
-    latent_dims: [16, 16, 16]
+    latent_dims: [32, 32, 32]
 
 logger:
   wandb:
     name: "${now:%Y-%m-%d}_${now:%H-%M-%S}"
     project: "vae"
-    group: "cifar10"
-    id: null # pass correct id to resume experiment! (if ckpt_path is not null)
+    group: "fashion"
+    id: null
 
-ckpt_path: null # simply provide checkpoint path to resume training
+ckpt_path: 

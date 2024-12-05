@@ -8,7 +8,7 @@ import lightning as L
 
 from torchmetrics import MeanMetric
 from torch.optim import Optimizer, lr_scheduler
-
+from torchmetrics.image import PeakSignalNoiseRatio, StructuralSimilarityIndexMeasure
 from torch.nn import MSELoss
 from segmentation_models_pytorch.losses import SoftBCEWithLogitsLoss, DiceLoss
 
@@ -59,6 +59,11 @@ class VAEModule(L.LightningModule):
         self.val_loss = MeanMetric()
         self.test_loss = MeanMetric()
 
+        self.val_psnr = PeakSignalNoiseRatio()
+        self.val_ssim = StructuralSimilarityIndexMeasure()
+        self.test_psnr = PeakSignalNoiseRatio()
+        self.test_ssim = StructuralSimilarityIndexMeasure()
+
     def on_train_batch_end(self, *args, **kwargs):
         pass
 
@@ -75,6 +80,8 @@ class VAEModule(L.LightningModule):
         # by default lightning executes validation step sanity checks before training starts,
         # so it's worth to make sure validation metrics don't store results from these checks
         self.val_loss.reset()
+        self.val_psnr.reset()
+        self.val_ssim.reset()
 
     def rescale(self, image):
         # convert range of image from [-1, 1] to [0, 1]
@@ -102,7 +109,7 @@ class VAEModule(L.LightningModule):
 
         
         losses["recons_loss"] = self.criterion(preds, targets)
-        return losses
+        return preds, losses
 
     def training_step(self, batch: Tuple[Tensor, Tensor],
                     batch_idx: int) -> Tensor:
@@ -113,7 +120,7 @@ class VAEModule(L.LightningModule):
         :param batch_idx: The index of the current batch.
         :return: A tensor of losses between model predictions and targets.
         """
-        losses = self.model_step(batch)
+        preds, losses = self.model_step(batch)
     
         # update and log metrics
         loss = sum(losses.values())
@@ -132,11 +139,7 @@ class VAEModule(L.LightningModule):
                     on_step=False,
                     on_epoch=True,
                     sync_dist=True)
-            
-        # log images
-        if batch_idx == -1:
-            
-            
+        
         # return loss or backpropagation will fail
         return loss
 
@@ -152,7 +155,7 @@ class VAEModule(L.LightningModule):
             labels.
         :param batch_idx: The index of the current batch.
         """
-        losses = self.model_step(batch)
+        reconstr, losses = self.model_step(batch)
 
         # update and log metrics
         loss = sum(losses.values())
@@ -165,11 +168,19 @@ class VAEModule(L.LightningModule):
                 prog_bar=True)
 
         for key in losses.keys():
-            self.log(f"val/{key}_loss",
+            self.log(f"val/{key}",
                     losses[key].detach(),
                     on_step=False,
                     on_epoch=True,
                     sync_dist=True)
+            
+        x, y = batch
+        psnr_value = self.val_psnr(reconstr, x)
+        ssim_value = self.val_ssim(reconstr, x)
+        if batch_idx %10 == 0:
+            self.logger.log_image(key='val/image', images=[reconstr, x], caption=['reconstruction', 'real'])
+        self.log("val/psnr", psnr_value, on_step=False, on_epoch=True, prog_bar=True)
+        self.log("val/ssim", ssim_value, on_step=False, on_epoch=True, prog_bar=True)
 
     def on_validation_epoch_end(self) -> None:
         "Lightning hook that is called when a validation epoch ends."
@@ -182,7 +193,7 @@ class VAEModule(L.LightningModule):
             labels.
         :param batch_idx: The index of the current batch.
         """
-        losses = self.model_step(batch)
+        reconstr, losses = self.model_step(batch)
 
         # update and log metrics
         loss = sum(losses.values())
@@ -200,6 +211,14 @@ class VAEModule(L.LightningModule):
                     on_step=False,
                     on_epoch=True,
                     sync_dist=True)
+
+        x, y = batch
+        psnr_value = self.test_psnr(reconstr, x)
+        ssim_value = self.test_ssim(reconstr, x)
+        if batch_idx %10 == 0:
+            self.logger.log_image(key='test/image', images=[reconstr, x], caption=['reconstruction', 'real'])
+        self.log("test/psnr", psnr_value, on_step=False, on_epoch=True, prog_bar=True)
+        self.log("test/ssim", ssim_value, on_step=False, on_epoch=True, prog_bar=True)
 
     def on_test_epoch_end(self) -> None:
         """Lightning hook that is called when a test epoch ends."""
