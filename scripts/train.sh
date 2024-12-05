@@ -1,2 +1,2 @@
-export WANDB_API_KEY=c7f09ef25e9b42c05c78ed67836882eb808b3ed0
+export WANDB_API_KEY=
 python src/train.py experiment=vae/vanilla_vae.yaml
