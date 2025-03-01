@@ -99,8 +99,6 @@ class VanillaVAE(BaseVAE):
     def forward(self, img: Tensor) -> Tuple[Tensor, Dict[str, Tensor]]:
         # img.shape = [64, 3, 32, 32]
         z, kld_loss = self.encode(img)
-        # from IPython import embed
-        # embed()
         loss = {"kld_loss": self.kld_weight * kld_loss}
         return self.decode(z), loss # reconstruction, loss
 
