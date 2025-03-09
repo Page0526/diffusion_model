@@ -6,32 +6,27 @@ from torch.utils.data import Dataset
 from PIL import Image
 from pathlib.Path import Path
 
-class FFHQDataset(Dataset):
-    data_dir = 'ffhq'
-    data_url = 'https://www.kaggle.com/datasets/greatgamedota/ffhq-face-data-set'
-
-    def __init__(self, data_dir: str = 'data', transform=None)-> None:
+class UrbanDataset(Dataset):
+    dataset_dir = "urban100"
+    dataset_url = "https://www.kaggle.com/datasets/msahebi/super-resolution"
+    def __init__(self, data_dir:str='data', transform=None):
         super().__init__()
         self.paths = list(Path(data_dir).glob("*/*.png"))
-        self.transform = transform
 
-    def prepare_data(self) -> None:
-        pass
-
-    def load_image(self, index: int)-> Image.Image:
+    def load_image(self, index:int)->Image.Image:
         image_path = self.paths[index]
         return Image.open(image_path)
-
+    
     def __len__(self):
         return len(self.paths)
     
-    def __getitem__(self, index):
+    def __getitem__(self, index:int):
         img = self.load_image(index)
         return img
     
-if __name__ == "__main__":
+if __name__ == '__main__':
 
-    dataset = FFHQDataset("")
+    dataset = UrbanDataset("")
     print(len(dataset))
 
     img = dataset[0]

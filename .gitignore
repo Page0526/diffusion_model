@@ -153,3 +153,4 @@ scripts/train.sh
 
 # Aim logging
 .aim
+/DDNM-datasets/
