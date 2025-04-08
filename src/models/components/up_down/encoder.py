@@ -117,10 +117,8 @@ class Encoder(nn.Module):
         for encoder in self.encoder:
             # Blocks
             for block in encoder.block:
-                # from IPython import embed
-                # embed()
-                # z.shape = [64, 64, 32, 32]
                 z = block(z)
+                
             # Down-sampling
             z = encoder.downSample(z)
 

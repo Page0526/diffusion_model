@@ -1,5 +1,4 @@
 from typing import Any, Tuple, Dict
-
 import torch
 from torch import Tensor
 import pyrootutils

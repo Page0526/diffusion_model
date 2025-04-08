@@ -4,42 +4,11 @@ import torch
 from lightning import LightningModule
 from torchmetrics import MeanMetric
 from torchvision.utils import make_grid
-from torchmetrics.image import FrechetInceptionDistance
+from torchmetrics.image import FrechetInceptionDistance, StructuralSimilarityIndexMeasure, PeakSignalNoiseRatio
 from torchvision import transforms
 from src.models.diffusion.net.diffusion_model import DiffusionModel
 
 class DiffusionModule(LightningModule):
-    """Example of a `LightningModule` for MNIST classification.
-
-    A `LightningModule` implements 8 key methods:
-
-    ```python
-    def __init__(self):
-    # Define initialization code here.
-
-    def setup(self, stage):
-    # Things to setup before each stage, 'fit', 'validate', 'test', 'predict'.
-    # This hook is called on every process when using DDP.
-
-    def training_step(self, batch, batch_idx):
-    # The complete training step.
-
-    def validation_step(self, batch, batch_idx):
-    # The complete validation step.
-
-    def test_step(self, batch, batch_idx):
-    # The complete test step.
-
-    def predict_step(self, batch, batch_idx):
-    # The complete predict step.
-
-    def configure_optimizers(self):
-    # Define and configure optimizers and LR schedulers.
-    ```
-
-    Docs:
-        https://lightning.ai/docs/pytorch/latest/common/lightning_module.html
-    """
 
     def __init__(
         self,
@@ -48,16 +17,10 @@ class DiffusionModule(LightningModule):
         scheduler: torch.optim.lr_scheduler,
         compile: bool,
     ) -> None:
-        """Initialize a `MNISTLitModule`.
-
-        :param net: The model to train.
-        :param optimizer: The optimizer to use for training.
-        :param scheduler: The learning rate scheduler to use for training.
-        """
+        
         super().__init__()
 
-        # this line allows to access init params with 'self.hparams' attribute
-        # also ensures init params will be stored in ckpt[]
+        
         self.save_hyperparameters(logger=False)
 
         self.net = net
@@ -65,42 +28,30 @@ class DiffusionModule(LightningModule):
         # loss function
         self.criterion = torch.nn.MSELoss()
 
-        # # metric objects for calculating and averaging accuracy across batches
-        # self.train_acc = Accuracy(task="multiclass", num_classes=10)
-        # self.val_acc = Accuracy(task="multiclass", num_classes=10)
-        # self.test_acc = Accuracy(task="multiclass", num_classes=10)
-
+    
         # for averaging loss across batches
         self.train_loss = MeanMetric()
         self.val_loss = MeanMetric()
         self.test_loss = MeanMetric()
 
-        # for tracking best so far validation accuracy
-        # self.val_acc_best = MaxMetric()
+        
         self.fid = FrechetInceptionDistance(normalize=True)
+        self.val_psnr = PeakSignalNoiseRatio()
+        self.val_ssim = StructuralSimilarityIndexMeasure()
+        self.test_psnr = PeakSignalNoiseRatio()
+        self.test_ssim = StructuralSimilarityIndexMeasure()
+
 
     def forward(self,
                 x: Tensor) -> Tuple[Tensor, Tensor]:
-        """Perform a forward pass through the model `self.net`.
-
-        :param x: A tensor of images.
-        :return: Two tensor of noise
-        """
+        
         preds, targets = self.net(x)
         return preds, targets
     
     def model_step(
             self, batch: Tuple[Tensor,
                                Tensor]) -> Tuple[Tensor, Tensor, Tensor]:
-        """Perform a single model step on a batch of data.
-
-        :param batch: A batch of data (a tuple) containing the input tensor of images and target labels.
         
-        :return: A tuple containing (in order):
-            - A tensor of losses.
-            - A tensor of predictions.
-            - A tensor of target labels.
-        """
         batch, _ = batch
         preds, targets = self.forward(batch)
         loss = self.criterion(preds, targets)
@@ -136,12 +87,7 @@ class DiffusionModule(LightningModule):
 
     def validation_step(self, batch: Tuple[Tensor, Tensor],
                         batch_idx: int) -> None:
-        """Perform a single validation step on a batch of data from the validation set.
-
-        :param batch: A batch of data (a tuple) containing the input tensor of images and target
-            labels.
-        :param batch_idx: The index of the current batch.
-        """
+        
         loss, preds, targets = self.model_step(batch)
 
         # update and log metrics
@@ -153,28 +99,26 @@ class DiffusionModule(LightningModule):
                  on_epoch=True,
                  prog_bar=True)
         
-        if batch_idx == -1:
-            # generate images
-            reals = batch[0]
-            fakes = self.net.sample(n_samples=reals.shape[0], device=self.device)
+        # generate images
+        orig = batch[0]
+        reconstr = self.net.sample(n_samples=reals.shape[0], device=self.device)
 
+        psnr_value = self.val_psnr(orig, reconstr)
+        ssim_value = self.val_ssim(orig, reconstr)
+
+        if batch_idx == 0:
             # transform images and calculate fid
             if preds.shape[1] == 1:
-                # from IPython import embed
-                # embed()
                 # gray to rgb image
-                rgb_fakes = torch.cat([fakes, fakes, fakes], dim=1)
-                rgb_reals = torch.cat([reals, reals, reals], dim=1)
+                rgb_fakes = torch.cat([reconstr, reconstr, reconstr], dim=1)
+                rgb_reals = torch.cat([orig, orig, orig], dim=1)
             else:   
-                rgb_fakes = fakes
-                rgb_reals = reals
+                rgb_fakes = reconstr
+                rgb_reals = orig
             
             transform_reals = torch.nn.functional.interpolate(rgb_reals,size=(299,299),mode='bilinear')
             transform_fakes = torch.nn.functional.interpolate(rgb_fakes,size=(299,299),mode='bilinear')
             
-            '''
-            TODO: Need to be normalized to [0,1]
-            '''
             normalized_reals = (transform_reals + 1) / 2  # Assuming original images are in range [-1, 1]
             normalized_fakes = (transform_fakes + 1) / 2  # Assuming original images are in range [-1, 1]
 
@@ -184,13 +128,18 @@ class DiffusionModule(LightningModule):
             # log image on wandb
             reals=make_grid(reals, nrow=8, normalize=True)
             fakes=make_grid(fakes, nrow=8, normalize=True)
-
+            
             self.logger.log_image(key='val/sample',images=[reals, fakes],caption=['real','fake'])
 
+        
+        self.log("val/psnr", psnr_value, on_step=False, on_epoch=True, prog_bar=True)
+        self.log("val/ssim", ssim_value, on_step=False, on_epoch=True, prog_bar=True)
+
     def on_validation_epoch_end(self) -> None:
-        "Lightning hook that is called when a validation epoch ends."
-        self.log("val/fid",self.fid.compute())
-        self.fid.reset()
+        if len(self.fid.real_features_sum) > 0 and len(self.fid.fake_features_sum) > 0:
+            self.log("val/fid",self.fid.compute())
+            self.fid.reset()
+        
 
     def test_step(self, batch: Tuple[Tensor, Tensor], batch_idx: int) -> None:
         """Perform a single test step on a batch of data from the test set.
@@ -203,23 +152,21 @@ class DiffusionModule(LightningModule):
 
         # update and log metrics
         self.test_loss(loss)
-        self.log("test/loss",
-                 self.test_loss,
-                 on_step=False,
-                 on_epoch=True,
-                 prog_bar=True)
+        
         # generate images
-        reals = batch[0]
-        fakes = self.net.sample(n_samples=reals.shape[0], device=self.device)
+        orig = batch[0]
+        reconstr = self.net.sample(n_samples=reals.shape[0], device=self.device)
+        psnr_value = self.test_psnr(reconstr, orig)
+        ssim_value = self.test_ssim(reconstr, orig)
 
         # transform images and calculate fid
         if preds.shape[1] == 1:
             # gray to rgb image
-            rgb_fakes = torch.cat([fakes, fakes, fakes], dim=1)
-            rgb_reals = torch.cat([reals, reals, reals], dim=1)
+            rgb_fakes = torch.cat([reconstr, reconstr, reconstr], dim=1)
+            rgb_reals = torch.cat([orig, orig, orig], dim=1)
         else:
-            rgb_fakes = fakes
-            rgb_reals = reals
+            rgb_fakes = reconstr
+            rgb_reals = orig
             
         transform_reals = torch.nn.functional.interpolate(rgb_reals,size=(299,299),mode='bilinear')
         transform_fakes = torch.nn.functional.interpolate(rgb_fakes,size=(299,299),mode='bilinear')
@@ -234,12 +181,19 @@ class DiffusionModule(LightningModule):
         reals=make_grid(reals, nrow=8, normalize=True)
         fakes=make_grid(fakes, nrow=8, normalize=True)
 
+        self.log("test/loss",
+                 self.test_loss,
+                 on_step=False,
+                 on_epoch=True,
+                 prog_bar=True)
+        self.log("test/psnr", psnr_value, on_step=False, on_epoch=True, prog_bar=True)
+        self.log("test/ssim", ssim_value, on_step=False, on_epoch=True, prog_bar=True)
         self.logger.log_image(key='test/sample',images=[reals, fakes],caption=['real','fake'])
 
     def on_test_epoch_end(self) -> None:
-        """Lightning hook that is called when a test epoch ends."""
-        self.log("test/fid",self.fid.compute(), prog_bar=False)
-        self.fid.reset()
+        if len(self.fid.real_features_sum) > 0 and len(self.fid.fake_features_sum) > 0:
+            self.log("test/fid",self.fid.compute(), prog_bar=False)
+            self.fid.reset()
 
     def setup(self, stage: str) -> None:
         """Lightning hook that is called at the beginning of fit (train + validate), validate,

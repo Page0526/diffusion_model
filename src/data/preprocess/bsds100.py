@@ -4,7 +4,7 @@ import os
 import matplotlib.pyplot as plt
 from torch.utils.data import Dataset
 from PIL import Image
-from pathlib.Path import Path
+from pathlib import Path
 
 class BSDSDataset(Dataset):
     dataset_dir = "bsds100"

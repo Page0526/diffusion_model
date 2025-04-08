@@ -2,7 +2,7 @@ import torch
 from torch import nn
 import pyrootutils
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
-from src.models.unet.unet import get_timestep_embedding, Upsample, Downsample, Nin, ResNetBlock, AttentionBlock, UNet
+from src.models.unet.unet import get_timestep_embedding, UNet
 
 class ConditionalUNet(UNet):
     def __init__(self, ch=128, in_ch: int | None = 1, label_dim: int | None = 10):
@@ -16,13 +16,12 @@ class ConditionalUNet(UNet):
         :param label: (torch.Tensor) tensor of labels (torch.long) [B]
         """
         # Obtain label embeddings
-        # bug: indices must be Tensor but got NoneType
+        
         label_emb = self.label_embedding(cond)
         
         # Add label embedding to timestep embedding
         temb = get_timestep_embedding(t, self.ch)
-        # from IPython import embed
-        # embed()
+        
         temb += label_emb  # Combine label and time embeddings
         temb = torch.nn.functional.silu(self.linear1(temb))
         temb = self.linear2(temb)

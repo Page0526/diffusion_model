@@ -3,63 +3,9 @@ from torch import nn
 import pyrootutils
 import math
 import numpy as np
-
-from tqdm import tqdm
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
+from src.models.components import get_timestep_embedding, DownSample, UpSample, Decoder, Encoder
 
-# computed timesteps embedding based on input timestep tensor
-def get_timestep_embedding(timesteps, embedding_dim: int):
-    assert len(timesteps.shape) == 1
-
-    half_dim = embedding_dim // 2
-    emb = math.log(10000) / (half_dim - 1)
-    emb = torch.exp(torch.arange(half_dim, dtype=torch.float32, device=timesteps.device) * -emb)
-    emb = timesteps.type(torch.float32)[:, None] * emb[None, :]
-    emb = torch.concat([torch.sin(emb), torch.cos(emb)], axis=1)
-
-    if embedding_dim % 2 == 1:  # zero pad
-        emb = torch.pad(emb, [[0, 0], [0, 1]])
-
-    assert emb.shape == (timesteps.shape[0], embedding_dim), f"{emb.shape}"
-    return emb
-
-# Sampling
-class Downsample(nn.Module):
-
-    def __init__(self, C):
-        """
-        :param C (int): number of input and output channels
-        """
-        super(Downsample, self).__init__()
-        self.conv = nn.Conv2d(C, C, 3, stride=2, padding=1) # input_shape, output_shape, kernel_size, stride, padding
-
-    def forward(self, x):
-        B, C, H, W = x.shape # batch, channels, height, weight
-        x = self.conv(x)
-        assert x.shape == (B, C, H // 2, W // 2) # // = divide with integer result
-        return x
-    
-class Upsample(nn.Module):
-
-    def __init__(self, C):
-        """
-        :param C (int): number of input and output channels
-        """
-        super(Upsample, self).__init__()
-        self.conv = nn.Conv2d(C, C, 3, stride=1, padding=1)
-
-    def forward(self, x):
-        B, C, H, W = x.shape
-
-        x = nn.functional.interpolate(x, size=None, scale_factor=2, mode='nearest')
-
-        x = self.conv(x)
-        assert x.shape == (B, C, H * 2, W * 2)
-        return x
-    
-# What does Nin do? 
-# Network in network - allow model to learn a linear transformation of features at each spatial location
-# In this model it is used to adjust number of channels
 class Nin(nn.Module):
 
     def __init__(self, in_dim, out_dim, scale=1e-10):
@@ -155,15 +101,15 @@ class UNet(nn.Module):
 
         self.down = nn.ModuleList([ResNetBlock(ch, 1 * ch),
                                    ResNetBlock(1 * ch, 1 * ch),
-                                   Downsample(1 * ch),
+                                   DownSample(1 * ch),
                                    ResNetBlock(1 * ch, 2 * ch),
                                    AttentionBlock(2 * ch),
                                    ResNetBlock(2 * ch, 2 * ch),
                                    AttentionBlock(2 * ch),
-                                   Downsample(2 * ch),
+                                   DownSample(2 * ch),
                                    ResNetBlock(2 * ch, 2 * ch),
                                    ResNetBlock(2 * ch, 2 * ch),
-                                   Downsample(2 * ch),
+                                   DownSample(2 * ch),
                                    ResNetBlock(2 * ch, 2 * ch),
                                    ResNetBlock(2 * ch, 2 * ch)])
 
@@ -174,18 +120,18 @@ class UNet(nn.Module):
         self.up = nn.ModuleList([ResNetBlock(4 * ch, 2 * ch),
                                  ResNetBlock(4 * ch, 2 * ch),
                                  ResNetBlock(4 * ch, 2 * ch),
-                                 Upsample(2 * ch),
+                                 UpSample(2 * ch),
                                  ResNetBlock(4 * ch, 2 * ch),
                                  ResNetBlock(4 * ch, 2 * ch),
                                  ResNetBlock(4 * ch, 2 * ch),
-                                 Upsample(2 * ch),
+                                 UpSample(2 * ch),
                                  ResNetBlock(4 * ch, 2 * ch),
                                  AttentionBlock(2 * ch),
                                  ResNetBlock(4 * ch, 2 * ch),
                                  AttentionBlock(2 * ch),
                                  ResNetBlock(3 * ch, 2 * ch),
                                  AttentionBlock(2 * ch),
-                                 Upsample(2 * ch),
+                                 UpSample(2 * ch),
                                  ResNetBlock(3 * ch, ch),
                                  ResNetBlock(2 * ch, ch),
                                  ResNetBlock(2 * ch, ch)])

@@ -4,7 +4,7 @@ import os
 import matplotlib.pyplot as plt
 from torch.utils.data import Dataset
 from PIL import Image
-from pathlib.Path import Path
+from pathlib import Path
 
 class Set5Dataset(Dataset):
     dataset_dir = "set5"

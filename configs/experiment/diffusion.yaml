@@ -5,7 +5,7 @@
 
 defaults:
   - override /data: fashion
-  - override /model: condition_diffusion_module
+  - override /model: diffusion_module
   - override /callbacks: default
   - override /trainer: gpu
   - override /logger: wandb.yaml
@@ -13,7 +13,7 @@ defaults:
 # all parameters below will be merged with parameters from default configurations set above
 # this allows you to overwrite only specified parameters
 
-tags: ["fashion", "ddim","condition_diffusion"]
+tags: ["fashion", "ddim","diffusion"]
 
 seed: 12345
 
@@ -40,10 +40,8 @@ data:
 logger:
   wandb:
     tags: ${tags}
-    group: "condition_diffusion"
+    group: "diffusion"
     name: "${now:%Y-%m-%d}_${now:%H-%M-%S}"
-    # tags: ${tags}
-    # group: ${data.dataset_name}
     # id: null # pass correct id to resume experiment! (if ckpt_path is not null)
   aim:
     experiment: "fashion"

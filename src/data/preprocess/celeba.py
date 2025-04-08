@@ -2,7 +2,7 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 from torch.utils.data import Dataset
-import pathlib.Path as Path
+import pathlib as Path
 from PIL import Image
 
 class CelebADataset(Dataset):
