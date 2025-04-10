@@ -19,7 +19,7 @@ seed: 12345
 
 trainer:
   min_epochs: 10
-  max_epochs: 50
+  max_epochs: 20
   gradient_clip_val: 0.5
   num_sanity_val_steps: 0
 
@@ -39,3 +39,9 @@ logger:
     name: "${now:%Y-%m-%d}_${now:%H-%M-%S}"
     # id: null # pass correct id to resume experiment! (if ckpt_path is not null)
 
+callbacks:
+  model_checkpoint:
+    monitor: "train/loss"
+
+  early_stopping:
+    monitor: "train/loss"
