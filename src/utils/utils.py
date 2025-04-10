@@ -1,13 +1,39 @@
 import warnings
 from importlib.util import find_spec
 from typing import Any, Callable, Dict, Optional, Tuple
-
 from omegaconf import DictConfig
-
+import numpy as np
+import torch
 from src.utils import pylogger, rich_utils
 
 log = pylogger.RankedLogger(__name__, rank_zero_only=True)
 
+#math ================================
+def c2r(complex_img, axis=0):
+    """
+    :input shape: row x col (complex64)
+    :output shape: 2 x row x col (float32)
+    """
+    if isinstance(complex_img, np.ndarray):
+        real_img = np.stack((complex_img.real, complex_img.imag), axis=axis)
+    elif isinstance(complex_img, torch.Tensor):
+        real_img = torch.stack((complex_img.real, complex_img.imag), axis=axis)
+    else:
+        raise NotImplementedError
+    return real_img
+
+def r2c(real_img, axis=0):
+    """
+    :input shape: 2 x row x col (float32)
+    :output shape: row x col (complex64)
+    """
+    if axis == 0:
+        complex_img = real_img[0] + 1j*real_img[1]
+    elif axis == 1:
+        complex_img = real_img[:,0] + 1j*real_img[:,1]
+    else:
+        raise NotImplementedError
+    return complex_img
 
 def extras(cfg: DictConfig) -> None:
     """Applies optional utilities before the task is started.

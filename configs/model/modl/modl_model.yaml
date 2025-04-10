@@ -1,0 +1,6 @@
+defaults:
+_target_: src.models.modl.modl.MoDLModel
+
+k_iters: 1
+n_layers: 5
+

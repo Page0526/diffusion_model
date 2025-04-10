@@ -1,0 +1,40 @@
+# @package _global_
+
+# to execute this experiment run:
+# python train.py experiment=example
+
+defaults:
+  - override /data: mri
+  - override /model: modl_module
+  - override /callbacks: default
+  - override /trainer: gpu
+  - override /logger: wandb.yaml
+  
+# all parameters below will be merged with parameters from default configurations set above
+# this allows you to overwrite only specified parameters
+
+tags: ["mri","modl"]
+
+seed: 12345
+
+trainer:
+  min_epochs: 10
+  max_epochs: 50
+  gradient_clip_val: 0.5
+
+model:
+  net:
+    k_iters: 1
+    n_layers: 5
+
+data:
+  batch_size: 1
+  num_workers: 4
+
+logger:
+  wandb:
+    tags: ${tags}
+    group: "modl"
+    name: "${now:%Y-%m-%d}_${now:%H-%M-%S}"
+    # id: null # pass correct id to resume experiment! (if ckpt_path is not null)
+

@@ -1,76 +1,29 @@
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+
 from typing import Any, Dict, Optional, Tuple
+from src.data.datasets.mri import MRIDataset
 import torch
 from lightning import LightningDataModule
 from torch.utils.data import ConcatDataset, DataLoader, Dataset, Subset, random_split
-from torchvision.datasets import MNIST
 from torchvision.transforms import transforms
 from src.data.datasets.__init__ import init_dataset
+import h5py as h5
 
-# D:\VSC\lightning-hydra-template\src\data\datasets\__init__.py
 class DiffusionDataModule(LightningDataModule):
-    """`LightningDataModule` for the MNIST dataset.
-
-    The MNIST database of handwritten digits has a training set of 60,000 examples, and a test set of 10,000 examples.
-    It is a subset of a larger set available from NIST. The digits have been size-normalized and centered in a
-    fixed-size image. The original black and white images from NIST were size normalized to fit in a 20x20 pixel box
-    while preserving their aspect ratio. The resulting images contain grey levels as a result of the anti-aliasing
-    technique used by the normalization algorithm. the images were centered in a 28x28 image by computing the center of
-    mass of the pixels, and translating the image so as to position this point at the center of the 28x28 field.
-
-    A `LightningDataModule` implements 7 key methods:
-
-    ```python
-        def prepare_data(self):
-        # Things to do on 1 GPU/TPU (not on every GPU/TPU in DDP).
-        # Download data, pre-process, split, save to disk, etc...
-
-        def setup(self, stage):
-        # Things to do on every process in DDP.
-        # Load data, set variables, etc...
-
-        def train_dataloader(self):
-        # return train dataloader
-
-        def val_dataloader(self):
-        # return validation dataloader
-
-        def test_dataloader(self):
-        # return test dataloader
-
-        def predict_dataloader(self):
-        # return predict dataloader
-
-        def teardown(self, stage):
-        # Called on every process in DDP.
-        # Clean up after fit or test.
-    ```
-
-    This allows you to share a full dataset without explaining how to download,
-    split, transform and process the data.
-
-    Read the docs:
-        https://lightning.ai/docs/pytorch/latest/data/datamodule.html
-    """
-
     def __init__(
         self,
         data_dir: str = "data/",
         train_val_test_dir: Tuple[str, str, str] = None,
         train_val_test_split: Tuple[int, int, int] = (55_000, 5_000, 10_000),
         batch_size: int = 64,
-        num_workers: int = 2,
-        dataset_name: str = 'mnist',
+        num_workers: int = 4,
+        dataset_name: str = 'mri',
         pin_memory: bool = False,
-        image_size: int = 32,
+        image_size: int = None,
     ) -> None:
-        """Initialize a `MNISTDataModule`.
-
-        :param data_dir: The data directory. Defaults to `"data/"`.
-        :param train_val_test_split: The train, validation and test split. Defaults to `(55_000, 5_000, 10_000)`.
-        :param batch_size: The batch size. Defaults to `64`.
-        :param num_workers: The number of workers. Defaults to `0`.
-        :param pin_memory: Whether to pin memory. Defaults to `False`.
-        """
+        
         super().__init__()
 
         # this line allows to access init params with 'self.hparams' attribute
@@ -97,14 +50,8 @@ class DiffusionDataModule(LightningDataModule):
         return 10
 
     def prepare_data(self) -> None:
-        """Download data if needed. Lightning ensures that `self.prepare_data()` is called only
-        within a single process on CPU, so you can safely add your downloading logic within. In
-        case of multi-node training, the execution of this hook depends upon
-        `self.prepare_data_per_node()`.
-
-        Do not use it to assign state (self.x = y).
-        """
         pass
+
 
     def setup(self, stage: Optional[str] = None) -> None:
         """Load data. Set variables: `self.data_train`, `self.data_val`, `self.data_test`.
@@ -123,44 +70,37 @@ class DiffusionDataModule(LightningDataModule):
                     f"Batch size ({self.hparams.batch_size}) is not divisible by the number of devices ({self.trainer.world_size})."
                 )
             self.batch_size_per_device = self.hparams.batch_size // self.trainer.world_size
+
+        if self.data_train or self.data_val or self.data_test:
+            return
             
-        # load and split datasets only if not loaded already
-        if not self.data_train and not self.data_val and not self.data_test:
-            if self.hparams.train_val_test_dir:
-                train_dir, val_dir, test_dir = self.hparams.train_val_test_dir
+        # Initialize datasets
+        if self.hparams.train_val_test_dir:
+            # Load separate train/val/test datasets
+            train_dir, val_dir, test_dir = self.hparams.train_val_test_dir
+            self.data_train = init_dataset(self.hparams.dataset_name, data_dir=self.hparams.data_dir, train_val_test_dir=train_dir)
+            self.data_val   = init_dataset(self.hparams.dataset_name, data_dir=self.hparams.data_dir, train_val_test_dir=val_dir)
+            self.data_test  = init_dataset(self.hparams.dataset_name, data_dir=self.hparams.data_dir, train_val_test_dir=test_dir)
 
-                train_set = init_dataset(self.hparams.dataset_name,
-                                         data_dir=self.hparams.data_dir,
-                                         train_val_test_dir=train_dir)
-
-                val_set = init_dataset(self.hparams.dataset_name,
-                                       data_dir=self.hparams.data_dir,
-                                       train_val_test_dir=val_dir)
-
-                test_set = init_dataset(self.hparams.dataset_name,
-                                        data_dir=self.hparams.data_dir,
-                                        train_val_test_dir=test_dir)
-
+        else:
+            if self.hparams.dataset_name == 'mri':
+                self.data_train = MRIDataset(mode='train', dataset_path=self.hparams.data_dir)
+                self.data_test = MRIDataset(mode='tst', dataset_path=self.hparams.data_dir)
             else:
-                dataset = init_dataset(self.hparams.dataset_name,
-                                       data_dir=self.hparams.data_dir)
+                # Load full dataset and random split
+                full_dataset = init_dataset(self.hparams.dataset_name, data_dir=self.hparams.data_dir)
 
-                # for testing code before training
-                len_dataset = sum(self.hparams.train_val_test_split)
-                if 1 < len_dataset and len_dataset < len(dataset):
-                    dataset = Subset(dataset, list(range(len_dataset)))
+                # Optional: limit size for quick testing
+                total_len = sum(self.hparams.train_val_test_split)
+                if 1 < total_len < len(full_dataset):
+                    full_dataset = Subset(full_dataset, range(total_len))
 
-                train_set, val_set, test_set = random_split(
-                    dataset=dataset,
+                self.data_train, self.data_val, self.data_test = random_split(
+                    full_dataset,
                     lengths=self.hparams.train_val_test_split,
-                    generator=torch.Generator().manual_seed(42),
+                    generator=torch.Generator().manual_seed(42)
                 )
-                
-            self.data_train, self.data_val, self.data_test = random_split(
-            dataset=dataset,
-            lengths=self.hparams.train_val_test_split,
-            generator=torch.Generator().manual_seed(42),
-            )
+
 
     def train_dataloader(self) -> DataLoader[Any]:
         """Create and return the train dataloader.
@@ -175,13 +115,11 @@ class DiffusionDataModule(LightningDataModule):
             shuffle=True,
         )
 
-    def val_dataloader(self) -> DataLoader[Any]:
-        """Create and return the validation dataloader.
-
-        :return: The validation dataloader.
-        """
+    def val_dataloader(self) -> Optional[DataLoader]:
+        if self.data_val is None:
+            return None  # ⚡ If no val set, Lightning will skip validation
         return DataLoader(
-            dataset=self.data_val,
+            self.data_val,
             batch_size=self.batch_size_per_device,
             num_workers=self.hparams.num_workers,
             pin_memory=self.hparams.pin_memory,
@@ -227,4 +165,35 @@ class DiffusionDataModule(LightningDataModule):
 
 
 if __name__ == "__main__":
-    _ = DiffusionDataModule()
+    data_dir = '/mnt/banana/student/ptrang/diffusion_model/data/mri/dataset.hdf5'
+    batch_size = 1
+    train_val_test_split = [0.8, 0, 0.2]
+    dataset_name = "mri"
+
+    dm = DiffusionDataModule(data_dir=data_dir, 
+                             batch_size=batch_size, 
+                             train_val_test_split=train_val_test_split, 
+                             dataset_name=dataset_name)
+    
+    dm.prepare_data()
+    dm.setup(stage="fit")
+
+    # Get DataLoaders
+    train_loader = dm.train_dataloader()
+    test_loader = dm.test_dataloader()
+
+
+    # Fetch one batch
+    train_batch = next(iter(train_loader))
+    test_batch = next(iter(test_loader))
+
+    from IPython import embed
+    embed()
+
+    # Assertions to check things are not broken
+    assert len(train_batch) > 0, "Train batch is empty!"
+    assert len(test_batch) > 0, "Test batch is empty!"
+    print("✅ DiffusionDataModule test passed for MRIDataset!")
+
+
+
