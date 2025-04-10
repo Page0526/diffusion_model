@@ -117,7 +117,7 @@ class DiffusionDataModule(LightningDataModule):
 
     def val_dataloader(self) -> Optional[DataLoader]:
         if self.data_val is None:
-            return None  # ⚡ If no val set, Lightning will skip validation
+            return []  # ⚡ If no val set, Lightning will skip validation
         return DataLoader(
             self.data_val,
             batch_size=self.batch_size_per_device,

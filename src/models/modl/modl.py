@@ -38,10 +38,11 @@ class MoDLModel(nn.Module):
             x_k = self.dc(z_k, x0, csm, mask) # (2, nrow, ncol)
         return x_k
 
-def conv_block(in_channel, out_channel):
+#CNN denoiser ======================
+def conv_block(in_channels, out_channels):
     return nn.Sequential(
-        nn.Conv2d(in_channels=in_channel, out_channels=out_channel, kernel_size=3, padding=1),
-        nn.BatchNorm2d(out_channel),
+        nn.Conv2d(in_channels, out_channels, 3, padding=1),
+        nn.BatchNorm2d(out_channels),
         nn.ReLU()
     )
 
@@ -51,19 +52,20 @@ class cnn_denoiser(nn.Module):
         layers = []
         layers += conv_block(2, 64)
 
-        for _ in range(n_layers - 2):
+        for _ in range(n_layers-2):
             layers += conv_block(64, 64)
 
         layers += nn.Sequential(
-            nn.Conv2d(64, 2, 3, 1),
+            nn.Conv2d(64, 2, 3, padding=1),
             nn.BatchNorm2d(2)
         )
 
         self.nw = nn.Sequential(*layers)
-
+    
     def forward(self, x):
-        idt = x # (2, row, col)
-        return self.nw(x) + idt # (2, row, col)
+        idt = x # (2, nrow, ncol)
+        dw = self.nw(x) + idt # (2, nrow, ncol)
+        return dw
         
 class myAtA(nn.Module):
     def __init__(self, csm, mask, lam):
