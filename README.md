@@ -11,11 +11,11 @@
 
 </div>
 
-## Description
+## 💡Description
 
 At first, the repo is mainly about my process of implementing basic diffusion models from scratch when I'm studying diffusion models. Then, I started researching about image restoration problem and want to apply diffusion model, more specificially, on medical image, so this repo is more like a place where I record my researching journey. I may have made some (more like a lot :>) mistakes, I will certainly happy if you let me know about it. 
 
-## Installation
+## 🔍Installation 
 
 #### Pip
 
@@ -36,7 +36,7 @@ pip install -r requirements.txt
 # or you can install requirements using conda
 conda 
 ```
-## How to run
+## 🔧How to run
 
 Train model with default configuration
 
@@ -76,7 +76,7 @@ You can see the result on wandb by run this script
 export WANDB_API_KEY=
 python src/train.py experiment=diffusion.yaml
 ```
-## My result
+## 🌼My result
 I will update sooner or later :> (this is my happy face incase you don't know)
 <br>
 <sub>A little confession as usual. Recently, I have applied to lots of AI jobs, but I got rejected from all of them, which is sad. However, I believe that when one door shuts, another one opens. I want to try my best and learn a lot, so I won’t have any regrets one day. </sub>
